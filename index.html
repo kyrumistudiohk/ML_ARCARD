@@ -7,24 +7,64 @@
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     
     <style>
-      body { margin: 0; overflow: hidden; }
-      /* UI 提示介面 */
+      body { margin: 0; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+      
+      /* 中英文提示 UI */
       #ui {
-        position: absolute; top: 20px; left: 20px; z-index: 999;
-        color: white; font-family: sans-serif; 
-        background: rgba(0,0,0,0.6);
-        padding: 15px; border-radius: 8px; 
-        pointer-events: none;
-        transition: opacity 0.5s;
+        position: absolute; top: 30px; width: 100%; text-align: center; z-index: 999;
+        color: white; pointer-events: none; transition: all 0.5s;
       }
+      .instruction-box {
+        display: inline-block; background: rgba(0, 0, 0, 0.7);
+        padding: 12px 25px; border-radius: 50px; border: 1px solid rgba(255, 255, 255, 0.3);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+      }
+      .zh { font-size: 18px; font-weight: bold; display: block; margin-bottom: 4px; }
+      .en { font-size: 12px; letter-spacing: 1px; text-transform: uppercase; opacity: 0.8; }
+
+      /* 動態掃描邊框 */
+      #scan-overlay {
+        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+        width: 70vw; height: 70vw; max-width: 300px; max-height: 300px;
+        border: 2px solid rgba(255, 255, 255, 0.3); border-radius: 20px; z-index: 998;
+      }
+      #scan-overlay::before {
+        content: ""; position: absolute; top: 0; left: 0; width: 100%; height: 2px;
+        background: #fff; box-shadow: 0 0 15px #fff;
+        animation: scanning 2s infinite ease-in-out;
+      }
+      @keyframes scanning {
+        0% { top: 0; opacity: 0; }
+        50% { opacity: 1; }
+        100% { top: 100%; opacity: 0; }
+      }
+      /* 四個角位裝飾 */
+      .corner { position: absolute; width: 20px; height: 20px; border: 4px solid #fff; }
+      .tl { top: -2px; left: -2px; border-right: 0; border-bottom: 0; border-top-left-radius: 15px; }
+      .tr { top: -2px; right: -2px; border-left: 0; border-bottom: 0; border-top-right-radius: 15px; }
+      .bl { bottom: -2px; left: -2px; border-right: 0; border-top: 0; border-bottom-left-radius: 15px; }
+      .br { bottom: -2px; right: -2px; border-left: 0; border-top: 0; border-bottom-right-radius: 15px; }
+
+      /* 隱藏狀態 */
+      .hidden { opacity: 0 !important; visibility: hidden; }
     </style>
   </head>
 
   <body>
-    <div id="ui">請對準卡片全貌<br>(點擊畫面解鎖音效)</div>
+    <div id="ui">
+      <div class="instruction-box">
+        <span class="zh" id="zh-text">請將相機對準卡片全貌</span>
+        <span class="en" id="en-text">Please point camera at the card</span>
+      </div>
+    </div>
+
+    <div id="scan-overlay">
+      <div class="corner tl"></div><div class="corner tr"></div>
+      <div class="corner bl"></div><div class="corner br"></div>
+    </div>
 
     <a-scene 
-      mindar-image="imageTargetSrc: ./targets.mind; filterMinCF: 0.0005; filterBeta: 0.01;"
+      mindar-image="imageTargetSrc: ./targets.mind; filterMinCF: 0.001; filterBeta: 10;"
       color-space="sRGB" 
       renderer="colorManagement: true, physicallyCorrectLights" 
       vr-mode-ui="enabled: false" 
@@ -49,30 +89,30 @@
       const video = document.querySelector('#cardVideo');
       const targetEl = document.querySelector('#ar-target');
       const ui = document.querySelector('#ui');
+      const scanOverlay = document.querySelector('#scan-overlay');
+      const zhText = document.querySelector('#zh-text');
+      const enText = document.querySelector('#en-text');
 
-      // 監測找到目標 (Target Found)
       targetEl.addEventListener("targetFound", event => {
-        console.log("Found Target!");
         video.play();
-        ui.innerHTML = "正在播放 AR 影片...";
-        ui.style.background = "rgba(0,128,0,0.6)"; // 變綠色提示成功
+        zhText.innerHTML = "正在播放 AR 影片";
+        enText.innerHTML = "AR Video Playing";
+        scanOverlay.classList.add('hidden'); // 認到後隱藏掃描框
       });
 
-      // 監測失去目標 (Target Lost)
       targetEl.addEventListener("targetLost", event => {
-        console.log("Lost Target");
         video.pause();
-        ui.innerHTML = "請重新對準卡片";
-        ui.style.background = "rgba(0,0,0,0.6)";
+        zhText.innerHTML = "請重新對準卡片";
+        enText.innerHTML = "Please Realignment";
+        scanOverlay.classList.remove('hidden'); // 唔見咗就顯示返
       });
       
-      // 點擊解鎖音效
       window.addEventListener('click', () => {
         if (video.muted) {
           video.muted = false;
-          ui.innerHTML = "音效已開啟";
-          // 2秒後半透明化 UI 避免遮擋
-          setTimeout(() => { ui.style.opacity = '0.4'; }, 2000);
+          zhText.innerHTML = "音效已開啟";
+          enText.innerHTML = "Audio Unmuted";
+          setTimeout(() => { ui.classList.add('hidden'); }, 2000);
         }
       });
     </script>

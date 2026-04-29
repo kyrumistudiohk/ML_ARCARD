@@ -21,31 +21,26 @@
     <div id="ui">請將相機對準卡片上的 QR Code<br>(點擊畫面以開啟聲音)</div>
 
     <a-scene 
-  mindar-image="imageTargetSrc: ./targets.mind; filterMinCF: 0.0001; filterBeta: 0.1;" 
+  mindar-image="imageTargetSrc: ./targets.mind; filterMinCF: 0.0001; filterBeta: 0.005;" 
   color-space="sRGB" 
   renderer="colorManagement: true, physicallyCorrectLights" 
   vr-mode-ui="enabled: false" 
   device-orientation-permission-ui="enabled: false">
-      
-      <a-assets>
-        <video id="cardVideo" src="./AR_SMK.mp4" 
-               preload="auto" loop="true" 
-               crossorigin="anonymous" 
-               webkit-playsinline playsinline muted></video>
-      </a-assets>
 
-      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+  <a-assets>
+    <video id="cardVideo" src="./AR_SMK.mp4" preload="auto" loop="true" crossorigin="anonymous" webkit-playsinline playsinline muted></video>
+  </a-assets>
 
-      <a-entity id="ar-target" mindar-image-target="targetIndex: 0">
-        
-       <a-video id="video-display" src="#cardVideo" 
-           position="0 0.22 0" 
-           width="0.92" height="0.52" 
-           rotation="0 0 0">
-  </a-video>
-        
-      </a-entity>
-    </a-scene>
+  <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+  <a-entity mindar-image-target="targetIndex: 0">
+    <a-video id="video-display" src="#cardVideo" 
+             position="0 0.22 0" 
+             width="0.9" height="0.5" 
+             rotation="0 0 0">
+    </a-video>
+  </a-entity>
+</a-scene>
 
     <script>
       const video = document.querySelector('#cardVideo');

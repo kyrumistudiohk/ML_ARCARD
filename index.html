@@ -21,11 +21,11 @@
     <div id="ui">請將相機對準卡片上的 QR Code<br>(點擊畫面以開啟聲音)</div>
 
     <a-scene 
-      mindar-image="imageTargetSrc: ./targets.mind;" 
-      color-space="sRGB" 
-      renderer="colorManagement: true, physicallyCorrectLights" 
-      vr-mode-ui="enabled: false" 
-      device-orientation-permission-ui="enabled: false">
+  mindar-image="imageTargetSrc: ./targets.mind; filterMinCF: 0.0001; filterBeta: 0.1;" 
+  color-space="sRGB" 
+  renderer="colorManagement: true, physicallyCorrectLights" 
+  vr-mode-ui="enabled: false" 
+  device-orientation-permission-ui="enabled: false">
       
       <a-assets>
         <video id="cardVideo" src="./AR_SMK.mp4" 
@@ -38,11 +38,11 @@
 
       <a-entity id="ar-target" mindar-image-target="targetIndex: 0">
         
-        <a-video id="video-display" src="#cardVideo" 
-         position="0 0.2 0" 
-         width="0.85" height="0.48" 
-         rotation="0 0 0">
-</a-video>
+       <a-video id="video-display" src="#cardVideo" 
+           position="0 0.22 0" 
+           width="0.92" height="0.52" 
+           rotation="0 0 0">
+  </a-video>
         
       </a-entity>
     </a-scene>

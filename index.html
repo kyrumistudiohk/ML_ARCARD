@@ -8,62 +8,72 @@
     
     <style>
       body { margin: 0; overflow: hidden; }
-      /* 畫面上顯示提示字句，話畀用戶知要點做 */
+      /* UI 提示介面 */
       #ui {
-        position: absolute; top: 10px; left: 10px; z-index: 999;
-        color: white; font-family: sans-serif; background: rgba(0,0,0,0.5);
-        padding: 10px; border-radius: 5px; pointer-events: none;
+        position: absolute; top: 20px; left: 20px; z-index: 999;
+        color: white; font-family: sans-serif; 
+        background: rgba(0,0,0,0.6);
+        padding: 15px; border-radius: 8px; 
+        pointer-events: none;
+        transition: opacity 0.5s;
       }
     </style>
   </head>
 
   <body>
-    <div id="ui">請將相機對準卡片上的 QR Code<br>(點擊畫面以開啟聲音)</div>
+    <div id="ui">請對準卡片全貌<br>(點擊畫面解鎖音效)</div>
 
-<a-scene 
-  mindar-image="imageTargetSrc: ./targets.mind; filterMinCF: 0.001; filterBeta: 0.01;"
-  color-space="sRGB" 
-  renderer="colorManagement: true, physicallyCorrectLights" 
-  vr-mode-ui="enabled: false" 
-  device-orientation-permission-ui="enabled: false">
+    <a-scene 
+      mindar-image="imageTargetSrc: ./targets.mind; filterMinCF: 0.0005; filterBeta: 0.01;"
+      color-space="sRGB" 
+      renderer="colorManagement: true, physicallyCorrectLights" 
+      vr-mode-ui="enabled: false" 
+      device-orientation-permission-ui="enabled: false">
 
-  <a-assets>
-    <video id="cardVideo" src="./AR_SMK.mp4" preload="auto" loop="true" crossorigin="anonymous" webkit-playsinline playsinline muted></video>
-  </a-assets>
+      <a-assets>
+        <video id="cardVideo" src="./AR_SMK.mp4" preload="auto" loop="true" crossorigin="anonymous" webkit-playsinline playsinline muted></video>
+      </a-assets>
 
-  <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
-  <a-entity mindar-image-target="targetIndex: 0">
-    <a-video id="video-display" src="#cardVideo" 
-           position="0 0.18 0" 
-           width="0.9" height="0.5" 
-           rotation="0 0 0">
-    </a-video>
-  </a-entity>
-</a-scene>
+      <a-entity id="ar-target" mindar-image-target="targetIndex: 0">
+        <a-video id="video-display" src="#cardVideo" 
+               position="0 0.18 0" 
+               width="0.9" height="0.5" 
+               rotation="0 0 0">
+        </a-video>
+      </a-entity>
+    </a-scene>
 
     <script>
       const video = document.querySelector('#cardVideo');
       const targetEl = document.querySelector('#ar-target');
       const ui = document.querySelector('#ui');
 
-      // 當搵到 QR Code 時自動播片
+      // 監測找到目標 (Target Found)
       targetEl.addEventListener("targetFound", event => {
+        console.log("Found Target!");
         video.play();
         ui.innerHTML = "正在播放 AR 影片...";
+        ui.style.background = "rgba(0,128,0,0.6)"; // 變綠色提示成功
       });
 
-      // 當移開鏡頭時暫停，節省手機效能
+      // 監測失去目標 (Target Lost)
       targetEl.addEventListener("targetLost", event => {
+        console.log("Lost Target");
         video.pause();
-        ui.innerHTML = "請對準 QR Code";
+        ui.innerHTML = "請重新對準卡片";
+        ui.style.background = "rgba(0,0,0,0.6)";
       });
       
-      // 因為瀏覽器安全限制，用戶必須點擊一下畫面，段片先可以有聲
+      // 點擊解鎖音效
       window.addEventListener('click', () => {
-        video.muted = false;
-        ui.innerHTML = "音量已開啟";
-        setTimeout(() => { ui.style.display = 'none'; }, 2000);
+        if (video.muted) {
+          video.muted = false;
+          ui.innerHTML = "音效已開啟";
+          // 2秒後半透明化 UI 避免遮擋
+          setTimeout(() => { ui.style.opacity = '0.4'; }, 2000);
+        }
       });
     </script>
   </body>

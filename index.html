@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+    
+    <style>
+      body { margin: 0; overflow: hidden; }
+      /* 畫面上顯示提示字句，話畀用戶知要點做 */
+      #ui {
+        position: absolute; top: 10px; left: 10px; z-index: 999;
+        color: white; font-family: sans-serif; background: rgba(0,0,0,0.5);
+        padding: 10px; border-radius: 5px; pointer-events: none;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div id="ui">請將相機對準卡片上的 QR Code<br>(點擊畫面以開啟聲音)</div>
+
+    <a-scene 
+      mindar-image="imageTargetSrc: ./targets.mind;" 
+      color-space="sRGB" 
+      renderer="colorManagement: true, physicallyCorrectLights" 
+      vr-mode-ui="enabled: false" 
+      device-orientation-permission-ui="enabled: false">
+      
+      <a-assets>
+        <video id="cardVideo" src="./AR_SMK.mp4" 
+               preload="auto" loop="true" 
+               crossorigin="anonymous" 
+               webkit-playsinline playsinline muted></video>
+      </a-assets>
+
+      <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+      <a-entity id="ar-target" mindar-image-target="targetIndex: 0">
+        
+        <a-video id="video-display" src="#cardVideo" 
+                 position="1.5 0 0" 
+                 width="1.6" height="0.9" 
+                 rotation="0 0 0">
+        </a-video>
+        
+      </a-entity>
+    </a-scene>
+
+    <script>
+      const video = document.querySelector('#cardVideo');
+      const targetEl = document.querySelector('#ar-target');
+      const ui = document.querySelector('#ui');
+
+      // 當搵到 QR Code 時自動播片
+      targetEl.addEventListener("targetFound", event => {
+        video.play();
+        ui.innerHTML = "正在播放 AR 影片...";
+      });
+
+      // 當移開鏡頭時暫停，節省手機效能
+      targetEl.addEventListener("targetLost", event => {
+        video.pause();
+        ui.innerHTML = "請對準 QR Code";
+      });
+      
+      // 因為瀏覽器安全限制，用戶必須點擊一下畫面，段片先可以有聲
+      window.addEventListener('click', () => {
+        video.muted = false;
+        ui.innerHTML = "音量已開啟";
+        setTimeout(() => { ui.style.display = 'none'; }, 2000);
+      });
+    </script>
+  </body>
+</html>

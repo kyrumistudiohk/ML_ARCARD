@@ -9,7 +9,7 @@
       /* 核心：確保所有層級透明 */
       html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: transparent !important; }
       
-      /* 相機層：保持你原始的設定以防黑屏 */
+      /* 相機層：保持原始設定防止黑屏 */
       video {
         width: 100vw !important;
         height: 100vh !important;
@@ -28,7 +28,7 @@
         position: fixed; bottom: 40px; right: 30px; 
         width: 65px; height: 65px; border-radius: 50%; border: 1px solid #d4af37;
         background: rgba(13, 13, 13, 0.7); color: #d4af37;
-        display: flex; flex-direction: column; align-items: center; justify-content: center; 
+        display: none; flex-direction: column; align-items: center; justify-content: center; 
         z-index: 1000; font-family: "serif", "Noto Serif JP", "MS Mincho", sans-serif; 
         cursor: pointer; transition: all 0.3s;
       }
@@ -36,7 +36,7 @@
       #rec-btn .jp-text { font-size: 8px; margin-top: 2px; opacity: 0.8; }
       #rec-btn.recording { border-color: #ff4444; color: #ff4444; background: rgba(0,0,0,0.9); }
 
-      /* 預覽窗修復 */
+      /* 預覽窗 */
       #preview-layer {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         background: rgba(0,0,0,0.95); z-index: 2000; display: none;
@@ -58,29 +58,38 @@
       .save { background: #d4af37; color: #000; border: none; }
       .close { background: transparent; color: #d4af37; border: none; border-right: 1px solid #d4af37; }
 
-      /* 日系藝術 Loading 畫面 */
+      /* 日系藝術進入畫面 */
       #loading-screen {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         background: #0d0d0d; z-index: 9999; display: flex; align-items: center; justify-content: center;
       }
       .jp-loading-card {
-        padding: 40px 30px; border: 1px solid #d4af37; position: relative; text-align: center;
+        padding: 50px 30px; border: 1px solid #d4af37; position: relative; text-align: center;
       }
       /* 和風四角飾線 */
       .jp-loading-card::before { content: ""; position: absolute; top: -5px; left: -5px; width: 15px; height: 15px; border-top: 2px solid #d4af37; border-left: 2px solid #d4af37; }
       .jp-loading-card::after { content: ""; position: absolute; bottom: -5px; right: -5px; width: 15px; height: 15px; border-bottom: 2px solid #d4af37; border-right: 2px solid #d4af37; }
       
-      .loading-title { color: #d4af37; font-family: "serif", sans-serif; letter-spacing: 5px; font-size: 20px; margin-bottom: 5px; }
-      .loading-sub { color: #d4af37; font-size: 10px; letter-spacing: 2px; opacity: 0.7; font-family: "serif", sans-serif; }
+      .loading-title { color: #d4af37; font-family: "serif", sans-serif; letter-spacing: 5px; font-size: 22px; margin-bottom: 5px; }
+      .loading-sub { color: #d4af37; font-size: 10px; letter-spacing: 2px; opacity: 0.7; font-family: "serif", sans-serif; margin-bottom: 30px; }
+
+      /* 啟動按鈕 */
+      #start-btn {
+        background: transparent; border: 1px solid #d4af37; color: #d4af37;
+        padding: 10px 30px; font-size: 12px; letter-spacing: 3px; cursor: pointer;
+        font-family: "serif", sans-serif; transition: 0.3s;
+      }
+      #start-btn:active { background: #d4af37; color: #000; }
     </style>
   </head>
 
   <body>
-    <!-- 日系 Loading 畫面 -->
+    <!-- 日系啟動/Loading 畫面 -->
     <div id="loading-screen">
       <div class="jp-loading-card">
         <div class="loading-title">KYRUMI STUDIO</div>
         <div class="loading-sub">空間の記憶 | MEMORY OF SPACE</div>
+        <button id="start-btn">進入探索 / ENTER</button>
       </div>
     </div>
 
@@ -99,8 +108,9 @@
       <span class="jp-text">録画</span>
     </div>
 
+    <!-- autoStart 改為 false，由 JS 觸發 -->
     <a-scene 
-      mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiLoading: no; uiScanning: no;"
+      mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiScanning: no;"
       embedded color-management="true" vr-mode-ui="enabled: false"
       renderer="preserveDrawingBuffer: true; alpha: true;">
       
@@ -118,6 +128,28 @@
       const sceneEl = document.querySelector('a-scene');
       const videoAsset = document.querySelector('#cardVideo');
       const recBtn = document.getElementById('rec-btn');
+      const startBtn = document.getElementById('start-btn');
+
+      // 核心修正：用戶點擊後才啟動 AR 與權限
+      startBtn.addEventListener('click', () => {
+        // 變更按鈕文字提示用戶正在載入
+        startBtn.innerText = "起動中...";
+        startBtn.disabled = true;
+
+        // 啟動 MindAR
+        sceneEl.systems['mindar-image-system'].start();
+      });
+
+      // 當 AR 準備好時隱藏啟動畫面
+      window.addEventListener("arReady", () => {
+        const loader = document.getElementById('loading-screen');
+        loader.style.transition = "opacity 0.8s ease";
+        loader.style.opacity = "0";
+        setTimeout(() => { 
+          loader.style.display = 'none'; 
+          recBtn.style.display = 'flex'; // 啟動成功後才顯示 REC
+        }, 800);
+      });
 
       // 強制修正相機比例與黑邊
       setInterval(() => {
@@ -129,14 +161,6 @@
           video.style.setProperty('z-index', '-5', 'important');
         }
       }, 1000);
-
-      window.addEventListener("arReady", () => {
-        // 使用淡出動畫提升藝術感
-        const loader = document.getElementById('loading-screen');
-        loader.style.transition = "opacity 0.8s ease";
-        loader.style.opacity = "0";
-        setTimeout(() => { loader.style.display = 'none'; }, 800);
-      });
 
       const targetEl = document.querySelector('#ar-target');
       targetEl.addEventListener("targetFound", () => videoAsset.play());
@@ -209,6 +233,11 @@
         document.getElementById('preview-layer').style.display = 'none';
         document.getElementById('preview-video').src = "";
       });
+
+      // 觸發音頻播放權限
+      window.addEventListener('touchstart', () => { 
+        if(videoAsset.muted) videoAsset.muted = false; 
+      }, {once: true});
     </script>
   </body>
 </html>

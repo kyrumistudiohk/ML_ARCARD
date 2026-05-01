@@ -6,67 +6,79 @@
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     
     <style>
-      /* 核心修復：強制消除所有邊距與黑邊 */
-      html, body { 
-        margin: 0; padding: 0; width: 100%; height: 100%; 
-        overflow: hidden; background: #000; position: fixed; 
+      html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; }
+      
+      /* 解決黑邊：scale(1.1) 確保邊緣溢出螢幕，消除細微黑線 */
+      video { 
+        min-width: 100% !important; min-height: 100% !important; 
+        object-fit: cover !important; 
+        position: fixed !important; top: 50%; left: 50%;
+        transform: translate(-50%, -50%) scale(1.1) !important;
+        z-index: -1 !important;
       }
 
-      /* 隱藏 Mind-AR UI */
       .mindar-ui-overlay, .mindar-ui-scanning, .mindar-ui-loading { display: none !important; }
 
-      /* 相機畫面修復：強制撐開，防止右側黑邊 */
-      video { 
-        width: 100% !important; height: 100% !important; 
-        object-fit: cover !important; 
-        position: absolute !important; top: 0; left: 0; 
-        z-index: -2 !important;
+      /* KYRUMI Loading Screen */
+      #loading-screen {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: #000; z-index: 9999; display: flex; flex-direction: column;
+        align-items: center; justify-content: center;
+        transition: opacity 0.8s ease; /* 淡出效果 */
       }
-
-      /* A-Frame 畫布修復：確保坐標系與螢幕完全一致 */
-      .a-canvas { 
-        width: 100% !important; height: 100% !important; 
-        position: absolute !important; top: 0; left: 0;
-        background: transparent !important;
+      .loading-text {
+        color: #d4af37; font-family: sans-serif; font-weight: bold; 
+        letter-spacing: 6px; font-size: 18px; margin-bottom: 20px;
+        animation: breath 2s infinite ease-in-out;
       }
+      @keyframes breath { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
 
-      /* 按鈕樣式 */
-      .controls { position: fixed; bottom: 60px; width: 100%; display: flex; justify-content: center; z-index: 1000; }
-      .btn { 
-        width: 85px; height: 85px; border-radius: 50%; border: 3px solid #fff; 
-        background: rgba(0,0,0,0.3); color: white; font-weight: bold; 
-        display: flex; align-items: center; justify-content: center; 
-        cursor: pointer; font-size: 14px; backdrop-filter: blur(8px);
+      /* REC 按鈕設計 */
+      .controls { position: fixed; bottom: 40px; right: 30px; z-index: 1000; }
+      #rec-btn { 
+        width: 75px; height: 75px; border-radius: 50%;
+        border: 4px solid rgba(255, 255, 255, 0.8);
+        background: radial-gradient(circle, rgba(212, 175, 55, 0.2) 0%, rgba(0,0,0,0.6) 100%);
+        color: #fff; font-weight: bold; font-size: 14px;
+        display: flex; align-items: center; justify-content: center;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        cursor: pointer; -webkit-tap-highlight-color: transparent;
       }
-      .btn.recording { border-color: #ff4444; color: #ff4444; animation: pulse 1.5s infinite; }
-      @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+      #rec-btn.recording { 
+        border-color: #ff4444; color: #ff4444; 
+        animation: pulse 1.5s infinite; 
+      }
+      @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
 
-      /* 錄影預覽彈窗 */
+      /* 錄影預覽 */
       #preview-layer {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0,0,0,0.95); z-index: 2000; display: none;
+        background: rgba(0,0,0,0.9); z-index: 10000; display: none;
         flex-direction: column; align-items: center; justify-content: center;
       }
-      #preview-video { max-width: 85%; border: 1.5px solid #d4af37; border-radius: 8px; margin-bottom: 25px; }
-      .save-btn { background: #d4af37; color: black; padding: 12px 30px; border-radius: 8px; text-decoration: none; font-weight: bold; margin-bottom: 20px; }
+      video#preview-video { width: 80% !important; height: auto !important; position: static !important; transform: none !important; border: 1px solid #d4af37; }
     </style>
   </head>
 
   <body>
+    <div id="loading-screen">
+      <div class="loading-text">KYRUMI STUDIO</div>
+      <div style="color: #444; font-size: 10px; letter-spacing: 2px;">INITIALIZING AR...</div>
+    </div>
+
     <div id="preview-layer">
         <video id="preview-video" controls playsinline></video>
-        <a id="download-link" class="save-btn" href="#">下載錄影 / DOWNLOAD</a>
-        <div id="close-preview" style="color:#fff; text-decoration:underline; cursor:pointer;">關閉 CLOSE</div>
+        <a id="download-link" href="#" style="margin-top:20px; color:#d4af37; text-decoration:none; font-weight:bold; border:1px solid #d4af37; padding:10px 20px;">SAVE VIDEO</a>
+        <div id="close-preview" style="margin-top:20px; color:#999; cursor:pointer;">CLOSE</div>
     </div>
 
     <div class="controls">
-      <div id="rec-btn" class="btn">REC</div>
+      <div id="rec-btn">REC</div>
     </div>
 
-    <!-- 移除了 embedded，並加入 renderer 參數確保透明度處理正確 -->
     <a-scene 
-      mindar-image="imageTargetSrc: ./targets.mind; uiLoading: no; uiScanning: no; filterMinCF:0.0001; filterBeta: 0.001;"
-      renderer="preserveDrawingBuffer: true; alpha: true; colorManagement: true; antialias: true;" 
+      mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiLoading: no; uiScanning: no;"
+      embedded renderer="preserveDrawingBuffer: true; alpha: true; antialias: true;" 
       vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
 
       <a-assets>
@@ -76,69 +88,65 @@
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
       <a-entity id="ar-target" mindar-image-target="targetIndex: 0">
-        <!-- 
-          對位重置：
-          因為移除了 embedded，坐標會重新對準。
-          先用 0 0 0 測試，如果佢識跟住張卡行，我哋再微調。
-        -->
-        <a-video id="video-obj" src="#cardVideo" position="0 0 0" width="1" height="0.56"></a-video>
+        <!-- 維持完美對位 -->
+        <a-video id="video-obj" src="#cardVideo" position="0 0.44 0" width="1" height="0.56"></a-video>
       </a-entity>
     </a-scene>
 
     <script>
       const sceneEl = document.querySelector('a-scene');
       const video = document.querySelector('#cardVideo');
-      const targetEl = document.querySelector('#ar-target');
-      const recBtn = document.querySelector('#rec-btn');
+      const loadingScreen = document.getElementById('loading-screen');
 
+      // 當 AR 系統準備就緒時自動隱藏 Loading
+      window.addEventListener("arReady", () => {
+        setTimeout(() => {
+          loadingScreen.style.opacity = '0';
+          setTimeout(() => { loadingScreen.style.display = 'none'; }, 800);
+        }, 1000);
+      });
+
+      const targetEl = document.querySelector('#ar-target');
       targetEl.addEventListener("targetFound", () => { video.play(); });
       targetEl.addEventListener("targetLost", () => { video.pause(); });
 
-      // 錄影邏輯 (修復移位問題)
-      let mediaRecorder, chunks = [], isRecording = false;
+      // 錄影邏輯
+      let mediaRecorder, chunks = [], isRecording = false, interval;
       const streamCanvas = document.createElement('canvas');
       const sCtx = streamCanvas.getContext('2d');
-      let interval;
 
-      recBtn.addEventListener('click', function() {
+      document.querySelector('#rec-btn').addEventListener('click', function() {
         if (!isRecording) {
             isRecording = true;
-            recBtn.classList.add('recording');
-            recBtn.innerHTML = "STOP";
+            this.classList.add('recording');
+            this.innerHTML = "STOP";
 
-            // 使用螢幕實際渲染解像度進行錄影，解決畫面移位問題
             interval = setInterval(() => {
                 const arCanvas = sceneEl.canvas;
                 const videoFeed = document.querySelector('video:not(#cardVideo)');
-                
                 streamCanvas.width = arCanvas.width;
                 streamCanvas.height = arCanvas.height;
-                
-                if (videoFeed) {
-                    // 根據鏡頭實際比例進行對位繪製
-                    sCtx.drawImage(videoFeed, 0, 0, streamCanvas.width, streamCanvas.height);
-                }
+                if (videoFeed) sCtx.drawImage(videoFeed, 0, 0, streamCanvas.width, streamCanvas.height);
                 sCtx.drawImage(arCanvas, 0, 0, streamCanvas.width, streamCanvas.height);
             }, 1000 / 30);
 
             const stream = streamCanvas.captureStream(30);
             mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
-
             mediaRecorder.ondataavailable = e => chunks.push(e.data);
             mediaRecorder.onstop = () => {
                 const blob = new Blob(chunks, { type: 'video/mp4' });
                 const url = URL.createObjectURL(blob);
                 document.getElementById('preview-video').src = url;
                 document.getElementById('download-link').href = url;
-                document.getElementById('download-link').download = `AR_RECODRING.mp4`;
+                document.getElementById('download-link').download = `KYRUMI_AR.mp4`;
                 document.getElementById('preview-layer').style.display = 'flex';
                 chunks = [];
             };
             mediaRecorder.start();
         } else {
             isRecording = false;
-            recBtn.classList.remove('recording');
-            recBtn.innerHTML = "REC";
+            this.classList.remove('recording');
+            this.innerHTML = "REC";
             clearInterval(interval);
             mediaRecorder.stop();
         }
@@ -146,10 +154,9 @@
 
       document.getElementById('close-preview').addEventListener('click', () => {
         document.getElementById('preview-layer').style.display = 'none';
-        document.getElementById('preview-video').pause();
       });
 
-      // 解鎖 iOS 聲音限制
+      // iOS 靜音解鎖
       window.addEventListener('touchstart', () => { if (video.muted) video.muted = false; });
     </script>
   </body>

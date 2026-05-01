@@ -7,27 +7,24 @@
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     
     <style>
-      /* 核心修正：鎖死網頁高度，防止因相機授權彈出導致佈局位移 */
       html, body {
         margin: 0; padding: 0; width: 100%; height: 100%;
         overflow: hidden; position: fixed; background: #000;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        font-family: -apple-system, sans-serif;
       }
 
-      /* 強制 A-Frame 畫布鋪滿全屏，不理會網址列變化 */
       .a-canvas {
         width: 100vw !important; height: 100vh !important;
         position: fixed !important; top: 0 !important; left: 0 !important;
       }
 
-      /* Loading Screen 樣式修正 */
       #loading {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         background: #1a1a1a; z-index: 2000; display: flex; flex-direction: column;
         align-items: center; justify-content: center; color: #d4af37;
       }
       #loading .brand { font-size: 20px; letter-spacing: 4px; font-weight: bold; margin-bottom: 8px; }
-      #loading .status { font-size: 10px; letter-spacing: 2px; opacity: 0.6; text-transform: uppercase; }
+      #loading .status { font-size: 10px; letter-spacing: 2px; opacity: 0.6; }
 
       #ui-overlay {
         position: fixed; top: 40px; width: 100%; text-align: center; z-index: 1000;
@@ -55,7 +52,6 @@
   </head>
 
   <body>
-    <!-- Loading Screen -->
     <div id="loading">
       <div class="brand">KYRUMI STUDIO</div>
       <div class="status">Loading...</div>
@@ -64,7 +60,7 @@
     <div id="ui-overlay">
       <div class="instruction">
         <div style="font-size: 16px; font-weight: 700;">請對準卡片畫作</div>
-        <div style="font-size: 10px; opacity: 0.8; letter-spacing: 1px;">ALIGN WITH ARTWORK</div>
+        <div style="font-size: 10px; opacity: 0.8;">ALIGN WITH ARTWORK</div>
       </div>
     </div>
 
@@ -73,8 +69,14 @@
       <div id="rec-btn" class="btn">REC<br>錄影</div>
     </div>
 
+    <!-- 
+      穩定性調整：
+      1. warmupSteps: 5 (快速進入追蹤)
+      2. missTolerance: 30 (行遠咗或者震咗，段片會停留 30 幀而唔係即刻消失)
+      3. filterMinCF: 0.0001 (過濾震動)
+    -->
     <a-scene 
-      mindar-image="imageTargetSrc: ./targets.mind; filterMinCF: 0.0001; filterBeta: 0.001; uiLoading: no; uiScanning: no;"
+      mindar-image="imageTargetSrc: ./targets.mind; warmupSteps: 5; missTolerance: 30; filterMinCF: 0.0001; filterBeta: 0.001; uiLoading: no; uiScanning: no;"
       color-space="sRGB" 
       renderer="preserveDrawingBuffer: true; alpha: true; antialias: true; colorManagement: true;" 
       vr-mode-ui="enabled: false" 
@@ -88,13 +90,13 @@
 
       <a-entity id="ar-target" mindar-image-target="targetIndex: 0">
         <!-- 
-           基於 image_17 & 18 最終對位修正：
-           Width 0.85 確保不超出邊框
-           Position Y 0.17 完美覆蓋原畫
+           修正 image_20 顯示偏移：
+           Position Y 改回 0.23 (稍微向上移返去卡片畫作區中心)
+           Width 0.88 (稍微闊返少少，貼合內框)
         -->
         <a-video id="video-display" src="#cardVideo" 
-               position="0 0.17 0" 
-               width="0.85" height="0.48" 
+               position="0 0.23 0" 
+               width="0.88" height="0.5" 
                rotation="0 0 0">
         </a-video>
       </a-entity>
@@ -105,19 +107,19 @@
       const targetEl = document.querySelector('#ar-target');
       const snapBtn = document.querySelector('#snap-btn');
 
-      // 隱藏 Loading Screen
       window.addEventListener("load", () => {
         setTimeout(() => { 
-          document.getElementById('loading').style.transition = 'opacity 0.5s';
-          document.getElementById('loading').style.opacity = '0';
-          setTimeout(() => { document.getElementById('loading').style.display = 'none'; }, 500);
+          const loader = document.getElementById('loading');
+          loader.style.transition = 'opacity 0.5s';
+          loader.style.opacity = '0';
+          setTimeout(() => { loader.style.display = 'none'; }, 500);
         }, 2000);
       });
 
       targetEl.addEventListener("targetFound", () => { video.play(); });
       targetEl.addEventListener("targetLost", () => { video.pause(); });
 
-      // --- 拍照功能：防止壓扁及比例失真 ---
+      // 拍照功能 (保持 Anti-Squeeze 比例修正)
       snapBtn.addEventListener('click', () => {
         const scene = document.querySelector('a-scene');
         const arCanvas = scene.renderer.domElement;
@@ -130,7 +132,6 @@
         finalCanvas.height = arCanvas.height;
         const ctx = finalCanvas.getContext('2d');
 
-        // 計算相機畫面在 Canvas 上的 Cover 比例 (防止 Squeezed)
         const videoAspect = videoFeed.videoWidth / videoFeed.videoHeight;
         const canvasAspect = finalCanvas.width / finalCanvas.height;
         let drawWidth, drawHeight, offsetX, offsetY;
@@ -147,21 +148,16 @@
           offsetY = (finalCanvas.height - drawHeight) / 2;
         }
 
-        // 1. 繪製相機底層
         ctx.drawImage(videoFeed, offsetX, offsetY, drawWidth, drawHeight);
-        
-        // 2. 疊加 AR 層
         scene.renderer.render(scene.object3D, scene.camera);
         ctx.drawImage(arCanvas, 0, 0, finalCanvas.width, finalCanvas.height);
 
-        // 3. 下載
         const link = document.createElement('a');
         link.download = `KYRUMI_AR_${Date.now()}.png`;
         link.href = finalCanvas.toDataURL('image/png');
         link.click();
       });
 
-      // 觸摸解鎖聲音
       window.addEventListener('click', () => { if (video.muted) video.muted = false; });
     </script>
   </body>

@@ -7,58 +7,74 @@
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     
     <style>
-      body { margin: 0; overflow: hidden; font-family: -apple-system, sans-serif; background: #000; }
+      /* 強制全屏，防止分層 */
+      body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; }
       
-      /* UI 提示：維持簡單、不遮擋 */
-      #ui-top {
-        position: absolute; top: 30px; width: 100%; text-align: center; z-index: 1000;
-        pointer-events: none;
+      /* A-Frame 容器修正 */
+      a-scene {
+        position: fixed !important;
+        top: 0;
+        left: 0;
+        width: 100vw !important;
+        height: 100vh !important;
+        z-index: 1;
+      }
+
+      #loading-screen {
+        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+        background: #000; color: #d4af37; display: flex; flex-direction: column;
+        align-items: center; justify-content: center; z-index: 2000; transition: opacity 0.8s;
+      }
+
+      /* 介面浮動於最上層 */
+      .capture-container {
+        position: fixed; bottom: 40px; width: 100%; display: flex;
+        justify-content: center; gap: 40px; align-items: center; z-index: 1000;
+      }
+      .btn {
+        width: 75px; height: 75px; border-radius: 50%; border: 4px solid #fff;
+        background: rgba(0,0,0,0.4); cursor: pointer; display: flex;
+        align-items: center; justify-content: center; color: white; font-size: 11px;
+        font-weight: bold; text-align: center; pointer-events: auto;
+      }
+      #photo-btn { border-color: #d4af37; }
+      #record-btn { border-color: #ff4444; }
+
+      #ui {
+        position: fixed; top: 30px; width: 100%; text-align: center; z-index: 999;
+        color: white; pointer-events: none;
       }
       .instruction-box {
         display: inline-block; background: rgba(0, 0, 0, 0.7);
-        padding: 10px 20px; border-radius: 50px; border: 1.5px solid #d4af37; color: white;
-      }
-
-      /* 影相及錄影按鈕 */
-      .controls {
-        position: absolute; bottom: 40px; width: 100%; display: flex;
-        justify-content: center; gap: 40px; z-index: 1000;
-      }
-      .circle-btn {
-        width: 75px; height: 75px; border-radius: 50%; border: 4px solid #fff;
-        background: rgba(0,0,0,0.4); color: white; font-weight: bold;
-        display: flex; flex-direction: column; align-items: center; justify-content: center;
-        cursor: pointer; -webkit-tap-highlight-color: transparent; font-size: 11px;
-      }
-      #snap-btn { border-color: #d4af37; }
-      #rec-btn { border-color: #ff4444; }
-
-      #loading {
-        position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-        background: #000; z-index: 2000; display: flex; align-items: center; justify-content: center; color: #d4af37;
+        padding: 8px 20px; border-radius: 50px; border: 1px solid #d4af37;
       }
     </style>
   </head>
 
   <body>
-    <div id="loading">KYRUMI STUDIO Loading...</div>
+    <div id="loading-screen">
+      <div style="letter-spacing: 2px;">KYRUMI STUDIO</div>
+      <div style="font-size: 10px; margin-top: 8px;">PREPARING AR...</div>
+    </div>
 
-    <div id="ui-top">
+    <div id="ui">
       <div class="instruction-box">
-        <div style="font-size: 15px; font-weight: bold;">請對準卡片畫作</div>
-        <div style="font-size: 9px; opacity: 0.7; letter-spacing: 1px;">ALIGN WITH ARTWORK</div>
+        <span style="font-size: 14px; font-weight: bold; display: block;">請對準卡片畫作</span>
+        <span style="font-size: 9px; opacity: 0.8;">ALIGN WITH ARTWORK</span>
       </div>
     </div>
 
-    <div class="controls">
-      <div id="snap-btn" class="circle-btn">SNAP<br>拍照</div>
-      <div id="rec-btn" class="circle-btn">REC<br>錄影</div>
+    <div class="capture-container">
+      <div id="photo-btn" class="btn">SNAP<br>拍照</div>
+      <div id="record-btn" class="btn">REC<br>錄影</div>
     </div>
 
+    <!-- 加入 embedded 確保聽從 CSS 排版 -->
     <a-scene 
       mindar-image="imageTargetSrc: ./targets.mind; filterMinCF: 0.0001; filterBeta: 0.001; uiLoading: no; uiScanning: no;"
-      embedded color-space="sRGB" 
-      renderer="preserveDrawingBuffer: true, alpha: true, antialias: true, colorManagement: true" 
+      embedded
+      color-space="sRGB" 
+      renderer="preserveDrawingBuffer: true, colorManagement: true, antialias: true" 
       vr-mode-ui="enabled: false" 
       device-orientation-permission-ui="enabled: false">
 
@@ -70,10 +86,9 @@
 
       <a-entity id="ar-target" mindar-image-target="targetIndex: 0">
         <!-- 
-           根據 Compiler 截圖微調：
-           Position Y: 0.28 (剛好對準畫作正中心)
-           Width: 1.1 (配合畫作寬度)
-           Height: 0.62 (配合畫作高度)
+           對位修正 (參考 Compiler 截圖)：
+           Position Y: 0.28 (向上對準畫作)
+           Width: 1.1 (完美覆蓋畫像寬度)
         -->
         <a-video id="video-display" src="#cardVideo" 
                position="0 0.28 0" 
@@ -86,46 +101,43 @@
     <script>
       const video = document.querySelector('#cardVideo');
       const targetEl = document.querySelector('#ar-target');
-      const snapBtn = document.querySelector('#snap-btn');
+      const photoBtn = document.querySelector('#photo-btn');
 
-      window.addEventListener("load", () => {
-        setTimeout(() => { document.getElementById('loading').style.display = 'none'; }, 1000);
+      window.addEventListener('load', () => {
+        setTimeout(() => { 
+          document.getElementById('loading-screen').style.opacity = '0'; 
+          setTimeout(() => { document.getElementById('loading-screen').style.display = 'none'; }, 800); 
+        }, 1500);
       });
 
       targetEl.addEventListener("targetFound", () => { video.play(); });
       targetEl.addEventListener("targetLost", () => { video.pause(); });
 
-      // --- 影相功能：合併「手機鏡頭背景」+「AR 內容」 ---
-      snapBtn.addEventListener('click', () => {
-        const scene = document.querySelector('a-scene');
-        const arCanvas = scene.renderer.domElement;
+      // --- 終極拍照修正：合併背景 + AR ---
+      photoBtn.addEventListener('click', () => {
+        const sceneEl = document.querySelector('a-scene');
+        // 攞 MindAR 生成嘅鏡頭 Video 標籤
         const videoBack = document.querySelector('video:not(#cardVideo)');
-
-        if (!videoBack) return;
+        // 攞 AR 渲染嘅 Canvas
+        const arCanvas = sceneEl.renderer.domElement;
 
         const finalCanvas = document.createElement('canvas');
-        // 使用實時渲染嘅寬高
         finalCanvas.width = arCanvas.offsetWidth;
         finalCanvas.height = arCanvas.offsetHeight;
         const ctx = finalCanvas.getContext('2d');
 
-        // 1. 先畫鏡頭背景 (按比例縮放以填滿 Canvas)
-        const videoRatio = videoBack.videoWidth / videoBack.videoHeight;
-        const canvasRatio = finalCanvas.width / finalCanvas.height;
-        
+        // 1. 畫鏡頭背景 (處理比例填滿)
         ctx.drawImage(videoBack, 0, 0, finalCanvas.width, finalCanvas.height);
         
-        // 2. 再畫 AR 內容
+        // 2. 畫 AR 內容 (疊加)
         ctx.drawImage(arCanvas, 0, 0, finalCanvas.width, finalCanvas.height);
 
-        // 3. 下載
         const link = document.createElement('a');
-        link.download = 'KYRUMI_AR_PHOTO.png';
+        link.download = 'KYRUMI-AR-FULL.png';
         link.href = finalCanvas.toDataURL('image/png');
         link.click();
       });
 
-      // 點擊畫面任何位置開啟聲音
       window.addEventListener('click', () => { if (video.muted) video.muted = false; });
     </script>
   </body>

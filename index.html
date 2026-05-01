@@ -1,71 +1,82 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
     <meta name="apple-mobile-web-app-capable" content="yes">
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     
     <style>
-      body { margin: 0; overflow: hidden; background: #000; font-family: -apple-system, sans-serif; }
-      
+      /* 核心修正：鎖死網頁高度，防止因相機授權彈出導致佈局位移 */
+      html, body {
+        margin: 0; padding: 0; width: 100%; height: 100%;
+        overflow: hidden; position: fixed; background: #000;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      }
+
+      /* 強制 A-Frame 畫布鋪滿全屏，不理會網址列變化 */
+      .a-canvas {
+        width: 100vw !important; height: 100vh !important;
+        position: fixed !important; top: 0 !important; left: 0 !important;
+      }
+
+      /* Loading Screen 樣式修正 */
       #loading {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         background: #1a1a1a; z-index: 2000; display: flex; flex-direction: column;
         align-items: center; justify-content: center; color: #d4af37;
       }
-      #loading .brand { font-size: 20px; letter-spacing: 4px; font-weight: bold; margin-bottom: 10px; }
-      #loading .status { font-size: 10px; letter-spacing: 2px; opacity: 0.6; }
+      #loading .brand { font-size: 20px; letter-spacing: 4px; font-weight: bold; margin-bottom: 8px; }
+      #loading .status { font-size: 10px; letter-spacing: 2px; opacity: 0.6; text-transform: uppercase; }
 
-      #ui-top {
-        position: fixed; top: 30px; width: 100%; text-align: center; z-index: 1000;
+      #ui-overlay {
+        position: fixed; top: 40px; width: 100%; text-align: center; z-index: 1000;
         pointer-events: none;
       }
-      .instruction-box {
+      .instruction {
         display: inline-block; background: rgba(0, 0, 0, 0.7);
-        padding: 8px 15px; border-radius: 50px; border: 1.5px solid #d4af37; color: white;
+        padding: 10px 24px; border-radius: 50px; border: 1.5px solid #d4af37; color: white;
       }
 
       .controls {
         position: fixed; bottom: 50px; width: 100%; display: flex;
         justify-content: center; gap: 40px; z-index: 1000;
       }
-      .circle-btn {
-        width: 75px; height: 75px; border-radius: 50%; border: 4px solid #fff;
+      .btn {
+        width: 80px; height: 80px; border-radius: 50%; border: 4px solid #fff;
         background: rgba(0,0,0,0.4); color: white; font-weight: bold;
         display: flex; flex-direction: column; align-items: center; justify-content: center;
-        cursor: pointer; -webkit-tap-highlight-color: transparent; font-size: 11px;
+        cursor: pointer; -webkit-tap-highlight-color: transparent; font-size: 12px;
+        backdrop-filter: blur(5px);
       }
       #snap-btn { border-color: #d4af37; }
       #rec-btn { border-color: #ff4444; }
-
-      /* 確保 A-Frame Canvas 填滿全屏 */
-      .a-canvas { width: 100% !important; height: 100% !important; position: absolute !important; top: 0 !important; left: 0 !important; }
     </style>
   </head>
 
   <body>
+    <!-- Loading Screen -->
     <div id="loading">
       <div class="brand">KYRUMI STUDIO</div>
-      <div class="status">LOADING...</div>
+      <div class="status">Loading...</div>
     </div>
 
-    <div id="ui-top">
-      <div class="instruction-box">
-        <div style="font-size: 14px; font-weight: bold;">請對準卡片底部</div>
-        <div style="font-size: 9px; opacity: 0.7;">ALIGN WITH CARD BOTTOM</div>
+    <div id="ui-overlay">
+      <div class="instruction">
+        <div style="font-size: 16px; font-weight: 700;">請對準卡片畫作</div>
+        <div style="font-size: 10px; opacity: 0.8; letter-spacing: 1px;">ALIGN WITH ARTWORK</div>
       </div>
     </div>
 
     <div class="controls">
-      <div id="snap-btn" class="circle-btn">SNAP<br>拍照</div>
-      <div id="rec-btn" class="circle-btn">REC<br>錄影</div>
+      <div id="snap-btn" class="btn">SNAP<br>拍照</div>
+      <div id="rec-btn" class="btn">REC<br>錄影</div>
     </div>
 
     <a-scene 
       mindar-image="imageTargetSrc: ./targets.mind; filterMinCF: 0.0001; filterBeta: 0.001; uiLoading: no; uiScanning: no;"
-      embedded color-space="sRGB" 
-      renderer="preserveDrawingBuffer: true, alpha: true, antialias: true, colorManagement: true" 
+      color-space="sRGB" 
+      renderer="preserveDrawingBuffer: true; alpha: true; antialias: true; colorManagement: true;" 
       vr-mode-ui="enabled: false" 
       device-orientation-permission-ui="enabled: false">
 
@@ -77,20 +88,13 @@
 
       <a-entity id="ar-target" mindar-image-target="targetIndex: 0">
         <!-- 
-           關鍵對位調整 (針對新 Target: 卡片底部):
-           
-           因為 Target (底部) 同 顯示位置 (頂部) 分開，
-           原點 (0,0,0) 係底部書法字嘅中心。
-           
-           Position Y: 設為 1.45。段片要向上「移」出 Target 範圍，貼到頂部畫像位置。
-           Position X: 設為 -0.25。底部書法字偏右，頂部畫像偏左，段片要向左移先對得到。
-           Width/Height: 1 0.56 (標準比例)。
-           Scale: 1.15。段片要放大到 1.15 倍，先可以完美覆蓋卡片上原本幅畫。
+           基於 image_17 & 18 最終對位修正：
+           Width 0.85 確保不超出邊框
+           Position Y 0.17 完美覆蓋原畫
         -->
         <a-video id="video-display" src="#cardVideo" 
-               position="-0.25 1.45 0" 
-               width="1" height="0.56" 
-               scale="1.15 1.15 1"
+               position="0 0.17 0" 
+               width="0.85" height="0.48" 
                rotation="0 0 0">
         </a-video>
       </a-entity>
@@ -101,37 +105,63 @@
       const targetEl = document.querySelector('#ar-target');
       const snapBtn = document.querySelector('#snap-btn');
 
+      // 隱藏 Loading Screen
       window.addEventListener("load", () => {
-        setTimeout(() => { document.getElementById('loading').style.display = 'none'; }, 2000);
+        setTimeout(() => { 
+          document.getElementById('loading').style.transition = 'opacity 0.5s';
+          document.getElementById('loading').style.opacity = '0';
+          setTimeout(() => { document.getElementById('loading').style.display = 'none'; }, 500);
+        }, 2000);
       });
 
       targetEl.addEventListener("targetFound", () => { video.play(); });
       targetEl.addEventListener("targetLost", () => { video.pause(); });
 
-      // --- 影相功能 (合併背景與 AR) ---
+      // --- 拍照功能：防止壓扁及比例失真 ---
       snapBtn.addEventListener('click', () => {
         const scene = document.querySelector('a-scene');
         const arCanvas = scene.renderer.domElement;
-        const videoFeed = document.querySelector('video[style*="position: absolute"]');
+        const videoFeed = document.querySelector('video:not(#cardVideo)');
 
-        const outputCanvas = document.createElement('canvas');
-        outputCanvas.width = arCanvas.clientWidth;
-        outputCanvas.height = arCanvas.clientHeight;
-        const ctx = outputCanvas.getContext('2d');
+        if (!videoFeed) return;
 
-        // 1. 畫相機背景
-        ctx.drawImage(videoFeed, 0, 0, outputCanvas.width, outputCanvas.height);
+        const finalCanvas = document.createElement('canvas');
+        finalCanvas.width = arCanvas.width;
+        finalCanvas.height = arCanvas.height;
+        const ctx = finalCanvas.getContext('2d');
+
+        // 計算相機畫面在 Canvas 上的 Cover 比例 (防止 Squeezed)
+        const videoAspect = videoFeed.videoWidth / videoFeed.videoHeight;
+        const canvasAspect = finalCanvas.width / finalCanvas.height;
+        let drawWidth, drawHeight, offsetX, offsetY;
+
+        if (videoAspect > canvasAspect) {
+          drawHeight = finalCanvas.height;
+          drawWidth = drawHeight * videoAspect;
+          offsetX = (finalCanvas.width - drawWidth) / 2;
+          offsetY = 0;
+        } else {
+          drawWidth = finalCanvas.width;
+          drawHeight = drawWidth / videoAspect;
+          offsetX = 0;
+          offsetY = (finalCanvas.height - drawHeight) / 2;
+        }
+
+        // 1. 繪製相機底層
+        ctx.drawImage(videoFeed, offsetX, offsetY, drawWidth, drawHeight);
         
-        // 2. 疊加 AR 內容
-        ctx.drawImage(arCanvas, 0, 0, outputCanvas.width, outputCanvas.height);
+        // 2. 疊加 AR 層
+        scene.renderer.render(scene.object3D, scene.camera);
+        ctx.drawImage(arCanvas, 0, 0, finalCanvas.width, finalCanvas.height);
 
-        const dataURL = outputCanvas.toDataURL('image/png');
+        // 3. 下載
         const link = document.createElement('a');
-        link.download = 'KYRUMI_AR.png';
-        link.href = dataURL;
+        link.download = `KYRUMI_AR_${Date.now()}.png`;
+        link.href = finalCanvas.toDataURL('image/png');
         link.click();
       });
 
+      // 觸摸解鎖聲音
       window.addEventListener('click', () => { if (video.muted) video.muted = false; });
     </script>
   </body>

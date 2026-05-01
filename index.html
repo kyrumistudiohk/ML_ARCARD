@@ -73,14 +73,14 @@
 
       <a-entity id="ar-target" mindar-image-target="targetIndex: 0">
         <!-- 
-           修正對位（基於 image_14 實測）：
-           Position Y: 降至 0.2
-           Width: 縮至 0.95
-           Height: 0.54 (維持 16:9 比例)
+           對位修正（參考 image_15 & 16）：
+           Position Y: 再降至 0.18 (貼合畫作中心)
+           Width: 縮至 0.88 (避免遮擋左右黑框)
+           Height: 0.5 (維持比例)
         -->
         <a-video id="video-display" src="#cardVideo" 
-               position="0 0.2 0" 
-               width="0.95" height="0.54" 
+               position="0 0.18 0" 
+               width="0.88" height="0.5" 
                rotation="0 0 0">
         </a-video>
       </a-entity>
@@ -98,7 +98,7 @@
       targetEl.addEventListener("targetFound", () => { video.play(); });
       targetEl.addEventListener("targetLost", () => { video.pause(); });
 
-      // --- 強效拍照修正：保證抓取 AR 內容 ---
+      // --- 影相功能：解決「儲存後變大」嘅比例偏差 ---
       snapBtn.addEventListener('click', () => {
         const scene = document.querySelector('a-scene');
         const arCanvas = scene.renderer.domElement;
@@ -106,22 +106,24 @@
 
         if (!videoFeed) return;
 
+        // 建立一個與相機原始分辨率一致的 Canvas
         const finalCanvas = document.createElement('canvas');
-        finalCanvas.width = arCanvas.width;
-        finalCanvas.height = arCanvas.height;
+        finalCanvas.width = videoFeed.videoWidth;
+        finalCanvas.height = videoFeed.videoHeight;
         const ctx = finalCanvas.getContext('2d');
 
-        // 1. 先畫背景鏡頭
+        // 1. 畫背景（相機原始畫面）
         ctx.drawImage(videoFeed, 0, 0, finalCanvas.width, finalCanvas.height);
         
-        // 2. 畫 AR 內容
-        // 關鍵：直接用渲染器渲染一幀，確保 preserveDrawingBuffer 生效
+        // 2. 畫 AR（根據相機比例縮放，防止變大）
+        // 再次強制渲染確保 AR 層最新
         scene.renderer.render(scene.object3D, scene.camera);
+        
+        // 核心修正：將 A-Frame Canvas 按比例縮放回相機尺寸
         ctx.drawImage(arCanvas, 0, 0, finalCanvas.width, finalCanvas.height);
 
-        // 3. 轉存成圖片
         const link = document.createElement('a');
-        link.download = 'KYRUMI_AR_FIXED.png';
+        link.download = 'KYRUMI_AR_FINAL.png';
         link.href = finalCanvas.toDataURL('image/png');
         link.click();
       });

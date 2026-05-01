@@ -6,45 +6,42 @@
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     
     <style>
-      /* 強制所有容器透明，確保相機畫面可以穿透 */
+      /* 核心修復：確保最底層係透明且無邊距 */
       html, body { 
         margin: 0; padding: 0; width: 100%; height: 100%; 
-        overflow: hidden; background: transparent !important; 
+        overflow: hidden; background: #000 !important; /* 底色用黑色防止閃白 */
       }
       
-      /* 相機鏡頭：置於最底層 (-2)，scale(1.1) 徹底消除黑邊 */
+      /* 鏡頭強制全屏修正 */
       video { 
-        min-width: 100% !important; min-height: 100% !important; 
-        object-fit: cover !important; 
-        position: fixed !important; top: 50%; left: 50%;
-        transform: translate(-50%, -50%) scale(1.1) !important;
+        width: 100vw !important; 
+        height: 100vh !important; 
+        object-fit: cover !important; /* 強制畫面填滿，不留白 */
+        position: fixed !important; 
+        top: 0 !important; 
+        left: 0 !important;
         z-index: -2 !important; 
-        background: transparent !important;
+        transform: scale(1.1) !important; /* 稍微放大確保遮蓋邊緣 */
       }
 
-      /* A-Frame Canvas：置於中間層 (-1) */
+      /* A-Frame 畫布：必須設為透明 */
       .a-canvas { 
         background-color: transparent !important; 
         z-index: -1 !important; 
       }
 
-      /* 隱藏 Mind-AR 原生 UI */
       .mindar-ui-overlay, .mindar-ui-scanning, .mindar-ui-loading { display: none !important; }
 
-      /* KYRUMI Loading Screen：自動消失，且不阻礙點擊 */
+      /* KYRUMI Loading Screen */
       #loading-screen {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         background: #000; z-index: 9999; display: flex; flex-direction: column;
         align-items: center; justify-content: center;
-        transition: opacity 1s ease;
-        pointer-events: none; 
+        transition: opacity 1s ease; pointer-events: none; 
       }
-      .loading-text {
-        color: #d4af37; font-family: sans-serif; font-weight: bold; 
-        letter-spacing: 6px; font-size: 18px;
-      }
+      .loading-text { color: #d4af37; font-family: sans-serif; font-weight: bold; letter-spacing: 6px; font-size: 18px; }
 
-      /* REC 按鈕：右下角設計 */
+      /* REC 按鈕 */
       .controls { position: fixed; bottom: 40px; right: 30px; z-index: 1000; }
       #rec-btn { 
         width: 75px; height: 75px; border-radius: 50%;
@@ -52,23 +49,29 @@
         background: radial-gradient(circle, rgba(212, 175, 55, 0.2) 0%, rgba(0,0,0,0.6) 100%);
         color: #fff; font-weight: bold; font-size: 14px;
         display: flex; align-items: center; justify-content: center;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-        cursor: pointer; -webkit-tap-highlight-color: transparent;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.5); cursor: pointer;
       }
       #rec-btn.recording { border-color: #ff4444; color: #ff4444; animation: pulse 1.5s infinite; }
       @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.05); } 100% { transform: scale(1); } }
 
-      /* 錄影預覽彈窗 */
+      /* 錄影預覽彈窗：按鈕喺底部，影片喺中間 */
       #preview-layer {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         background: rgba(0,0,0,0.95); z-index: 10000; display: none;
-        flex-direction: column; align-items: center; justify-content: center;
+        flex-direction: column; align-items: center; justify-content: space-between;
+        padding: 50px 0 60px 0;
       }
-      video#preview-video { width: 80%; border: 1px solid #d4af37; border-radius: 8px; }
-      .popup-btns { display: flex; gap: 15px; margin-top: 25px; }
-      .popup-btn { padding: 12px 25px; border-radius: 5px; font-weight: bold; text-decoration: none; font-size: 13px; cursor: pointer; font-family: sans-serif; }
-      .save-btn { background: #d4af37; color: black; }
-      .retry-btn { background: transparent; color: #fff; border: 1px solid #fff; }
+      #preview-video { 
+        width: 85%; max-height: 60%; 
+        border: 1px solid #d4af37; border-radius: 8px; 
+      }
+      .popup-btns { display: flex; gap: 20px; width: 100%; justify-content: center; }
+      .popup-btn { 
+        padding: 15px 40px; border-radius: 50px; font-weight: bold; 
+        text-decoration: none; font-size: 14px; cursor: pointer; font-family: sans-serif;
+      }
+      .save-btn { background: #d4af37; color: black; border: none; }
+      .close-btn { background: transparent; color: #fff; border: 1px solid #fff; }
     </style>
   </head>
 
@@ -77,19 +80,21 @@
       <div class="loading-text">KYRUMI STUDIO</div>
     </div>
 
+    <!-- 錄影完成彈窗 -->
     <div id="preview-layer">
+        <div style="color:#d4af37; letter-spacing:2px; font-weight:bold;">PREVIEW</div>
         <video id="preview-video" controls playsinline></video>
         <div class="popup-btns">
-            <a id="download-link" class="popup-btn save-btn" href="#">SAVE VIDEO</a>
-            <div id="retry-page" class="popup-btn retry-btn">RETRY</div>
+            <div id="close-preview" class="popup-btn close-btn">CLOSE</div>
+            <a id="download-link" class="popup-btn save-btn" href="#">SAVE</a>
         </div>
-        <div id="close-preview" style="margin-top:25px; color:#666; cursor:pointer;">CLOSE</div>
     </div>
 
     <div class="controls">
       <div id="rec-btn">REC</div>
     </div>
 
+    <!-- autoStart: true 確保相機自動開啟 -->
     <a-scene 
       mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiLoading: no; uiScanning: no;"
       renderer="preserveDrawingBuffer: true; alpha: true; antialias: true; colorManagement: true;" 
@@ -102,7 +107,7 @@
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
       <a-entity id="ar-target" mindar-image-target="targetIndex: 0">
-        <!-- 保持之前測試最準確的對位數值 -->
+        <!-- 保持對位數值 -->
         <a-video id="video-obj" src="#cardVideo" position="0 0.44 0" width="1" height="0.56"></a-video>
       </a-entity>
     </a-scene>
@@ -112,7 +117,7 @@
       const video = document.querySelector('#cardVideo');
       const loadingScreen = document.getElementById('loading-screen');
 
-      // 1. 自動隱藏 Loading 並確保相機啟動
+      // 自動隱藏 Loading
       window.addEventListener("arReady", () => {
         setTimeout(() => {
           loadingScreen.style.opacity = '0';
@@ -125,7 +130,7 @@
       targetEl.addEventListener("targetFound", () => { video.play(); });
       targetEl.addEventListener("targetLost", () => { video.pause(); });
 
-      // 2. 錄影邏輯 (修復移位並整合 Retry)
+      // 錄影邏輯
       let mediaRecorder, chunks = [], isRecording = false, interval;
       const streamCanvas = document.createElement('canvas');
       const sCtx = streamCanvas.getContext('2d');
@@ -154,7 +159,7 @@
                 const url = URL.createObjectURL(blob);
                 document.getElementById('preview-video').src = url;
                 document.getElementById('download-link').href = url;
-                document.getElementById('download-link').download = `KYRUMI_AR.mp4`;
+                document.getElementById('download-link').download = `KYRUMI_AR_${Date.now()}.mp4`;
                 document.getElementById('preview-layer').style.display = 'flex';
                 chunks = [];
             };
@@ -168,15 +173,11 @@
         }
       });
 
-      // 3. Retry 功能：直接 Reload
-      document.getElementById('retry-page').addEventListener('click', () => { window.location.reload(); });
-      
       document.getElementById('close-preview').addEventListener('click', () => {
         document.getElementById('preview-layer').style.display = 'none';
         document.getElementById('preview-video').pause();
       });
 
-      // iOS 靜音解鎖
       window.addEventListener('touchstart', () => { if (video.muted) video.muted = false; }, {once: true});
     </script>
   </body>

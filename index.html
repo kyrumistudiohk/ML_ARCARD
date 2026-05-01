@@ -6,10 +6,8 @@
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     
     <style>
-      /* 核心修正：背景必須透明，確保鏡頭唔會被遮 */
       html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: transparent; }
       
-      /* 自訂 Loading */
       #custom-loading {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         background: #000; z-index: 2000; display: flex; flex-direction: column;
@@ -27,20 +25,21 @@
       
       .controls { position: fixed; bottom: 80px; width: 100%; display: flex; justify-content: center; gap: 40px; z-index: 1000; }
       .btn { 
-        width: 85px; height: 85px; border-radius: 50%; border: 4px solid #fff; 
-        background: rgba(0,0,0,0.2); color: white; font-weight: bold; 
+        width: 80px; height: 80px; border-radius: 50%; border: 4px solid #fff; 
+        background: rgba(0,0,0,0.4); color: white; font-weight: bold; 
         display: flex; align-items: center; justify-content: center; 
-        cursor: pointer; font-size: 13px; backdrop-filter: blur(5px);
+        cursor: pointer; font-size: 12px; backdrop-filter: blur(5px);
         text-align: center; font-family: sans-serif; -webkit-tap-highlight-color: transparent;
       }
-      #rec-btn.recording { background: rgba(255, 0, 0, 0.6); border-color: #ff4444; }
+      #rec-btn.recording { background: rgba(255, 0, 0, 0.7); border-color: #ff4444; animation: pulse 1s infinite; }
+      @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
     </style>
   </head>
 
   <body>
     <div id="custom-loading">
       <div class="spinner"></div>
-      <div style="color:#d4af37; letter-spacing:4px; font-family:sans-serif;">KYRUMI STUDIO</div>
+      <div style="color:#d4af37; letter-spacing:4px; font-size:14px; font-weight:bold;">KYRUMI STUDIO</div>
     </div>
 
     <div id="ui-overlay">
@@ -52,9 +51,8 @@
       <div id="rec-btn" class="btn">REC<br>錄影</div>
     </div>
 
-    <!-- 移除 embedded，讓 scene 接管整個螢幕，解決黑色塊問題 -->
     <a-scene 
-      mindar-image="imageTargetSrc: ./targets.mind; uiLoading: no; uiScanning: no; warmupSteps: 5;"
+      mindar-image="imageTargetSrc: ./targets.mind; uiLoading: no; uiScanning: no;"
       color-space="sRGB" 
       renderer="preserveDrawingBuffer: true; alpha: true; antialias: true;" 
       vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
@@ -66,10 +64,10 @@
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
       <a-entity id="ar-target" mindar-image-target="targetIndex: 0">
-        <!-- 最終對位：Y=0.45，寬度 0.85，高度 0.5 -->
+        <!-- 修正對位：寬度縮窄至 0.78，高度 0.45，位置下調至 0.42 -->
         <a-video id="video-display" src="#cardVideo" 
-               position="0 0.45 0" 
-               width="0.85" height="0.5" 
+               position="0 0.42 0.01" 
+               width="0.78" height="0.45" 
                rotation="0 0 0">
         </a-video>
       </a-entity>
@@ -80,7 +78,6 @@
       const targetEl = document.querySelector('#ar-target');
       const recBtn = document.querySelector('#rec-btn');
       
-      // 當鏡頭啟動後隱藏 Loading
       window.addEventListener("arReady", () => {
         document.getElementById('custom-loading').style.display = 'none';
       });
@@ -88,69 +85,75 @@
       targetEl.addEventListener("targetFound", () => { video.play(); });
       targetEl.addEventListener("targetLost", () => { video.pause(); });
 
-      // 合成畫面函數（拍照 & 錄影用）
-      function captureFrame() {
+      // 強制合成 Canvas 函數 (確保拍照錄影同步)
+      function getComposedCanvas() {
         const arCanvas = document.querySelector('.a-canvas');
         const videoFeed = document.querySelector('video:not(#cardVideo)');
-        const output = document.createElement('canvas');
-        output.width = arCanvas.width;
-        output.height = arCanvas.height;
-        const ctx = output.getContext('2d');
-        
+        const final = document.createElement('canvas');
+        final.width = arCanvas.width;
+        final.height = arCanvas.height;
+        const ctx = final.getContext('2d');
+
         if (videoFeed) {
-          ctx.drawImage(videoFeed, 0, 0, output.width, output.height);
+          // 鏡頭填滿背景
+          ctx.drawImage(videoFeed, 0, 0, final.width, final.height);
         }
-        ctx.drawImage(arCanvas, 0, 0, output.width, output.height);
-        return output;
+        // 強制 A-Frame 渲染當前幀
+        const scene = document.querySelector('a-scene');
+        scene.renderer.render(scene.object3D, scene.camera);
+        ctx.drawImage(arCanvas, 0, 0, final.width, final.height);
+        
+        return final;
       }
 
       // 拍照
       document.querySelector('#snap-btn').addEventListener('click', () => {
-        const finalCanvas = captureFrame();
+        const result = getComposedCanvas();
         const link = document.createElement('a');
         link.download = `KYRUMI_SNAP.png`;
-        link.href = finalCanvas.toDataURL('image/png');
+        link.href = result.toDataURL('image/png');
         link.click();
       });
 
-      // 錄影
+      // 錄影 (15fps 極致流暢版)
       let mediaRecorder;
       let chunks = [];
       let isRecording = false;
       let streamCanvas = document.createElement('canvas');
       let sCtx = streamCanvas.getContext('2d');
-      let requestID;
+      let rafId;
 
-      function loop() {
+      function recordLoop() {
         if (!isRecording) return;
-        const frame = captureFrame();
+        const frame = getComposedCanvas();
         streamCanvas.width = frame.width;
         streamCanvas.height = frame.height;
         sCtx.drawImage(frame, 0, 0);
-        requestID = requestAnimationFrame(loop);
+        rafId = requestAnimationFrame(recordLoop);
       }
 
       recBtn.addEventListener('click', () => {
         if (!isRecording) {
           isRecording = true;
-          const stream = streamCanvas.captureStream(25);
-          mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+          // 將幀率降至 15fps，減少窒機感
+          const stream = streamCanvas.captureStream(15);
+          mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp8' });
           mediaRecorder.ondataavailable = e => chunks.push(e.data);
           mediaRecorder.onstop = () => {
             const blob = new Blob(chunks, { type: 'video/webm' });
             const a = document.createElement('a');
             a.href = URL.createObjectURL(blob);
-            a.download = `KYRUMI_AR.webm`;
+            a.download = `KYRUMI_AR_VIDEO.webm`;
             a.click();
           };
           chunks = [];
           mediaRecorder.start();
           recBtn.innerHTML = "STOP";
           recBtn.classList.add('recording');
-          loop();
+          recordLoop();
         } else {
           isRecording = false;
-          cancelAnimationFrame(requestID);
+          cancelAnimationFrame(rafId);
           mediaRecorder.stop();
           recBtn.innerHTML = "REC";
           recBtn.classList.remove('recording');

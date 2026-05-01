@@ -6,82 +6,98 @@
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     
     <style>
-      /* 核心：確保所有層級都是透明的 */
-      html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: transparent !important; }
+      html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; }
       
-      /* 強制相機：object-fit cover 解決黑邊 */
+      /* 相機層 */
       video:not(#cardVideo):not(#preview-video) {
-        width: 100vw !important;
-        height: 100vh !important;
-        object-fit: cover !important;
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        z-index: -5 !important; 
+        width: 100vw !important; height: 100vh !important;
+        object-fit: cover !important; position: fixed !important;
+        top: 0 !important; left: 0 !important; z-index: -10 !important;
       }
 
-      /* A-Frame 畫布透明化 */
-      .a-canvas { background: transparent !important; z-index: -1 !important; }
-      a-scene { background: transparent !important; }
+      .a-canvas { background: transparent !important; z-index: -5 !important; }
+
+      /* 自定義 Motion Sensor 彈窗設計 */
+      #permission-overlay {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.95); z-index: 30000;
+        display: flex; align-items: center; justify-content: center;
+      }
+      .custom-popup {
+        width: 85%; max-width: 320px; background: #1a1a1a; 
+        border: 1px solid #d4af37; border-radius: 24px; padding: 40px 25px;
+        text-align: center; color: #fff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+      }
+      .custom-popup h2 { color: #d4af37; margin: 0 0 15px 0; letter-spacing: 2px; font-size: 22px; }
+      .custom-popup p { font-size: 14px; line-height: 1.6; opacity: 0.8; margin-bottom: 30px; }
+      
+      #allow-btn { 
+        background: linear-gradient(135deg, #d4af37 0%, #f2d479 100%);
+        color: #000; padding: 16px; border-radius: 50px; 
+        font-weight: 800; cursor: pointer; text-transform: uppercase;
+        letter-spacing: 1px; transition: transform 0.2s;
+      }
+      #allow-btn:active { transform: scale(0.95); }
 
       /* REC 按鈕 */
       #rec-btn { 
-        position: fixed; bottom: 40px; right: 30px; 
+        position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);
         width: 70px; height: 70px; border-radius: 50%; border: 4px solid #fff;
-        background: rgba(0,0,0,0.4); color: #fff; font-weight: bold;
-        display: flex; align-items: center; justify-content: center; 
-        z-index: 1000; font-family: sans-serif; cursor: pointer;
+        background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(5px);
+        display: none; align-items: center; justify-content: center; z-index: 1000;
       }
-      #rec-btn.recording { border-color: #ff4444; color: #ff4444; }
+      #rec-btn::after { content: ""; width: 25px; height: 25px; background: #ff4444; border-radius: 50%; transition: all 0.3s; }
+      #rec-btn.recording::after { border-radius: 4px; transform: scale(0.8); }
 
-      /* 預覽窗修復：恢復為較小尺寸 */
+      /* 錄製預覽窗 */
       #preview-layer {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0,0,0,0.9); z-index: 2000; display: none;
-        flex-direction: column; align-items: center; justify-content: center;
+        background: rgba(0,0,0,0.98); z-index: 40000; 
+        display: none; flex-direction: column; align-items: center; justify-content: center;
       }
       #preview-video { 
-        width: 220px; /* 恢復較小寬度 */
-        height: 391px; /* 保持 9:16 比例 */
-        background: #000; border: 2px solid #d4af37; border-radius: 10px; 
-        object-fit: cover; 
+        width: 280px; height: 497px; background: #000; 
+        border: 2px solid #d4af37; border-radius: 20px; object-fit: cover; 
       }
 
-      /* 按鈕區 */
-      .popup-btns { display: flex; gap: 15px; margin-top: 20px; }
-      .btn { 
-        padding: 10px 25px; border-radius: 20px; font-weight: bold; 
-        font-family: sans-serif; text-decoration: none; cursor: pointer; font-size: 14px;
-      }
-      .save { background: #d4af37; color: #000; }
+      .popup-btns { display: flex; gap: 15px; margin-top: 25px; width: 280px; }
+      .btn { flex: 1; padding: 14px; border-radius: 50px; font-weight: bold; font-family: sans-serif; cursor: pointer; text-align: center; font-size: 14px; }
+      .save { background: #d4af37; color: #000; text-decoration: none; }
       .close { border: 1px solid #fff; color: #fff; }
 
-      #loading-screen {
-        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: #000; z-index: 9999; display: flex; align-items: center; justify-content: center;
-      }
-      .loading-text { color: #d4af37; font-family: sans-serif; letter-spacing: 4px; }
+      #loading-text { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #d4af37; font-family: sans-serif; display: none; z-index: 25000; }
     </style>
   </head>
 
   <body>
-    <div id="loading-screen"><div class="loading-text">KYRUMI STUDIO</div></div>
+    <!-- 新設計的彈窗 -->
+    <div id="permission-overlay">
+      <div class="custom-popup">
+        <h2>ENABLE AR</h2>
+        <p>To experience the immersive effects, please allow access to your motion sensors.</p>
+        <div id="allow-btn">Get Started</div>
+      </div>
+    </div>
+
+    <div id="loading-text">INITIALIZING...</div>
 
     <div id="preview-layer">
         <video id="preview-video" controls playsinline></video>
         <div class="popup-btns">
             <div id="close-preview" class="btn close">CLOSE</div>
-            <a id="download-link" class="btn save">SAVE</a>
+            <a id="download-link" class="btn save">SAVE VIDEO</a>
         </div>
     </div>
 
-    <div id="rec-btn">REC</div>
+    <div id="rec-btn"></div>
 
+    <!-- 注意：device-orientation-permission-ui="enabled: false" 用來關閉原生醜彈窗 -->
     <a-scene 
-      mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiLoading: no; uiScanning: no;"
-      embedded color-management="true" vr-mode-ui="enabled: false"
-      device-orientation-permission-ui="enabled: true"
-      renderer="preserveDrawingBuffer: true; alpha: true; antialias: true;">
+      mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiScanning: no;"
+      embedded vr-mode-ui="enabled: false"
+      device-orientation-permission-ui="enabled: false"
+      renderer="preserveDrawingBuffer: true; alpha: true; antialias: false; precision: mediump;">
       
       <a-assets>
         <video id="cardVideo" src="./AR_SMK.mp4" loop="true" crossorigin="anonymous" webkit-playsinline playsinline muted></video>
@@ -96,68 +112,51 @@
     <script>
       const sceneEl = document.querySelector('a-scene');
       const videoAsset = document.querySelector('#cardVideo');
+      const allowBtn = document.getElementById('allow-btn');
       const recBtn = document.getElementById('rec-btn');
 
-      // 強制修正相機比例
-      setInterval(() => {
-        const video = document.querySelector('video:not([id])');
-        if (video) {
-          video.style.setProperty('width', '100vw', 'important');
-          video.style.setProperty('height', '100vh', 'important');
-          video.style.setProperty('object-fit', 'cover', 'important');
-          video.style.setProperty('z-index', '-5', 'important');
-        }
-      }, 1000);
+      // 點擊新按鈕啟動
+      allowBtn.addEventListener('click', async () => {
+        document.getElementById('permission-overlay').style.display = 'none';
+        document.getElementById('loading-text').style.display = 'block';
 
-      window.addEventListener("arReady", () => {
-        document.getElementById('loading-screen').style.display = 'none';
+        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+          try {
+            await DeviceOrientationEvent.requestPermission();
+          } catch (e) { console.error(e); }
+        }
+        sceneEl.systems['mindar-image-system'].start();
       });
 
-      const targetEl = document.querySelector('#ar-target');
-      targetEl.addEventListener("targetFound", () => videoAsset.play());
-      targetEl.addEventListener("targetLost", () => videoAsset.pause());
+      sceneEl.addEventListener("arReady", () => {
+        document.getElementById('loading-text').style.display = 'none';
+        recBtn.style.display = 'flex';
+      });
 
-      // 錄影邏輯
+      // 錄影引擎 (已優化 Lag)
       let mediaRecorder, chunks = [], isRecording = false;
       const captureCanvas = document.createElement('canvas');
-      const ctx = captureCanvas.getContext('2d');
+      const ctx = captureCanvas.getContext('2d', { desynchronized: true });
 
       function recordLoop() {
         if (!isRecording) return;
         const arCanvas = sceneEl.canvas;
         const videoFeed = document.querySelector('video:not([id])');
-        
         if (videoFeed && arCanvas) {
-          captureCanvas.width = arCanvas.width;
-          captureCanvas.height = arCanvas.height;
-          
-          const vw = videoFeed.videoWidth;
-          const vh = videoFeed.videoHeight;
-          const cw = captureCanvas.width;
-          const ch = captureCanvas.height;
-          const vRatio = vw / vh;
-          const cRatio = cw / ch;
-
-          let sx, sy, sw, sh;
-          if (vRatio > cRatio) {
-            sw = vh * cRatio; sh = vh;
-            sx = (vw - sw) / 2; sy = 0;
-          } else {
-            sw = vw; sh = vw / cRatio;
-            sx = 0; sy = (vh - sh) / 2;
+          if (captureCanvas.width !== arCanvas.clientWidth) {
+            captureCanvas.width = arCanvas.clientWidth;
+            captureCanvas.height = arCanvas.clientHeight;
           }
-
-          ctx.drawImage(videoFeed, sx, sy, sw, sh, 0, 0, cw, ch);
-          ctx.drawImage(arCanvas, 0, 0, cw, ch);
+          ctx.drawImage(videoFeed, 0, 0, captureCanvas.width, captureCanvas.height);
+          ctx.drawImage(arCanvas, 0, 0, captureCanvas.width, captureCanvas.height);
         }
         requestAnimationFrame(recordLoop);
       }
 
-      recBtn.addEventListener('click', function() {
+      recBtn.addEventListener('click', () => {
         if (!isRecording) {
           isRecording = true;
-          this.classList.add('recording');
-          this.innerHTML = "STOP";
+          recBtn.classList.add('recording');
           chunks = [];
           recordLoop();
           const stream = captureCanvas.captureStream(30);
@@ -168,24 +167,34 @@
             const url = URL.createObjectURL(blob);
             document.getElementById('preview-video').src = url;
             document.getElementById('download-link').href = url;
-            document.getElementById('download-link').download = `AR_VIDEO.mp4`;
+            document.getElementById('download-link').download = `KYRUMI_AR.mp4`;
             document.getElementById('preview-layer').style.display = 'flex';
           };
           mediaRecorder.start();
         } else {
           isRecording = false;
-          this.classList.remove('recording');
-          this.innerHTML = "REC";
+          recBtn.classList.remove('recording');
           mediaRecorder.stop();
         }
       });
 
-      document.getElementById('close-preview').addEventListener('click', () => {
+      document.getElementById('close-preview').onclick = () => {
         document.getElementById('preview-layer').style.display = 'none';
         document.getElementById('preview-video').src = "";
-      });
+      };
 
-      // 觸摸即播放聲音，解決瀏覽器限制
+      // 自動全屏相機修復
+      setInterval(() => {
+        const v = document.querySelector('video:not([id])');
+        if (v) {
+          v.style.width = '100vw'; v.style.height = '100vh';
+          v.style.objectFit = 'cover'; v.style.zIndex = '-10';
+        }
+      }, 1000);
+      
+      const targetEl = document.querySelector('#ar-target');
+      targetEl.addEventListener("targetFound", () => videoAsset.play());
+      targetEl.addEventListener("targetLost", () => videoAsset.pause());
       window.addEventListener('touchstart', () => { if(videoAsset.muted) videoAsset.muted = false; }, {once: true});
     </script>
   </body>

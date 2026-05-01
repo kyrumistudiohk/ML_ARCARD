@@ -6,112 +6,98 @@
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     
     <style>
-      /* 核心變數 */
-      :root {
-        --navy: #000C1F;
-        --gold: #D4AF37;
-        --gold-light: #F2D479;
-      }
-
-      html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; }
+      /* 全局基礎設定 */
+      html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; font-family: "serif", "Noto Serif JP", "MS Mincho"; }
       
-      /* 相機層強制置底 */
+      /* 相機層級修正：確保相機永遠在最底層 */
       video:not(#cardVideo):not(#preview-video) {
         width: 100vw !important; height: 100vh !important;
         object-fit: cover !important; position: fixed !important;
-        top: 0 !important; left: 0 !important; z-index: -10 !important;
+        top: 0 !important; left: 0 !important; z-index: -100 !important;
       }
+      .a-canvas { background: transparent !important; z-index: -10 !important; }
 
-      .a-canvas { background: transparent !important; z-index: -5 !important; }
-
-      /* 品牌啟動彈窗 (Kyrumi Studio Style) */
+      /* 日式藝術風格彈窗 */
       #permission-overlay {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: var(--navy); z-index: 30000;
+        background: #0d0d0d; z-index: 50000;
         display: flex; align-items: center; justify-content: center;
       }
-      .custom-popup {
-        width: 85%; max-width: 340px; background: rgba(255, 255, 255, 0.03); 
-        border: 1.5px solid var(--gold); border-radius: 30px; padding: 45px 30px;
-        text-align: center; color: #fff; font-family: "Helvetica Neue", sans-serif;
-        box-shadow: 0 0 30px rgba(212, 175, 55, 0.2);
-        backdrop-filter: blur(10px);
+      .jp-card {
+        width: 80%; max-width: 300px; padding: 40px 20px;
+        border: 1px solid #d4af37; position: relative;
+        text-align: center; color: #d4af37; background: #0d0d0d;
       }
-      .brand-title { 
-        font-size: 12px; color: var(--gold); letter-spacing: 6px; 
-        margin-bottom: 8px; text-transform: uppercase; font-weight: 300;
-      }
-      .main-title { 
-        font-size: 26px; color: #fff; margin-bottom: 20px; font-weight: bold; 
-        background: linear-gradient(to bottom, #fff, #aaa); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-      }
-      .custom-popup p { font-size: 13px; line-height: 1.6; opacity: 0.6; margin-bottom: 35px; }
+      /* 四角日式飾線 */
+      .jp-card::before { content: ""; position: absolute; top: -5px; left: -5px; width: 20px; height: 20px; border-top: 2px solid #d4af37; border-left: 2px solid #d4af37; }
+      .jp-card::after { content: ""; position: absolute; bottom: -5px; right: -5px; width: 20px; height: 20px; border-bottom: 2px solid #d4af37; border-right: 2px solid #d4af37; }
+
+      .jp-card h1 { font-size: 20px; letter-spacing: 6px; margin: 0 0 10px 0; font-weight: 300; }
+      .jp-card h2 { font-size: 12px; letter-spacing: 2px; margin-bottom: 30px; opacity: 0.8; }
       
-      #allow-btn { 
-        background: linear-gradient(135deg, var(--gold) 0%, var(--gold-light) 100%);
-        color: var(--navy); padding: 18px; border-radius: 12px; 
-        font-weight: 900; cursor: pointer; text-transform: uppercase;
-        letter-spacing: 2px; font-size: 14px; box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+      #start-btn { 
+        display: inline-block; padding: 12px 30px; border: 1px solid #d4af37;
+        color: #d4af37; font-size: 13px; letter-spacing: 3px; cursor: pointer;
+        transition: all 0.3s; background: transparent;
       }
+      #start-btn:active { background: #d4af37; color: #000; }
 
-      /* 錄製按鈕 - 金色設計 */
+      /* 日式圓形錄影鍵 (像日本印章或家紋) */
       #rec-btn { 
-        position: fixed; bottom: 40px; left: 50%; transform: translateX(-50%);
-        width: 75px; height: 75px; border-radius: 50%; border: 4px solid var(--gold);
-        background: rgba(0, 12, 31, 0.6); backdrop-filter: blur(8px);
+        position: fixed; bottom: 45px; left: 50%; transform: translateX(-50%);
+        width: 60px; height: 60px; border: 1px solid #d4af37; border-radius: 50%;
         display: none; align-items: center; justify-content: center; z-index: 1000;
+        background: rgba(13, 13, 13, 0.6); backdrop-filter: blur(2px);
       }
-      #rec-btn::after { content: ""; width: 28px; height: 28px; background: #ff4444; border-radius: 50%; transition: all 0.3s; }
-      #rec-btn.recording::after { border-radius: 6px; transform: scale(0.85); }
+      #rec-btn .inner-circle { width: 44px; height: 44px; background: #d4af37; border-radius: 50%; opacity: 0.8; }
+      #rec-btn.recording .inner-circle { border-radius: 4px; background: #ff4444; transform: scale(0.6); }
 
-      /* 預覽視窗 - 品牌配色 */
+      /* 藝術預覽窗 */
       #preview-layer {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: var(--navy); z-index: 40000; 
+        background: rgba(0,0,0,0.95); z-index: 60000; 
         display: none; flex-direction: column; align-items: center; justify-content: center;
       }
       #preview-video { 
-        width: 280px; height: 497px; background: #000; 
-        border: 2px solid var(--gold); border-radius: 20px; object-fit: cover; 
+        width: 280px; height: 500px; background: #000; 
+        border: 1px solid #d4af37; object-fit: cover; 
       }
 
-      .popup-btns { display: flex; gap: 15px; margin-top: 25px; width: 280px; }
-      .btn { flex: 1; padding: 16px; border-radius: 12px; font-weight: bold; font-family: sans-serif; cursor: pointer; text-align: center; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; }
-      .save { background: var(--gold); color: var(--navy); text-decoration: none; }
-      .close { border: 1px solid rgba(255,255,255,0.3); color: #fff; }
+      .popup-btns { display: flex; gap: 0; margin-top: 20px; width: 280px; border: 1px solid #d4af37; }
+      .btn { flex: 1; padding: 15px; font-size: 12px; letter-spacing: 2px; cursor: pointer; text-align: center; color: #d4af37; text-decoration: none; }
+      .btn:first-child { border-right: 1px solid #d4af37; }
+      .btn:active { background: #d4af37; color: #000; }
 
-      #loading-text { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: var(--gold); font-family: sans-serif; display: none; z-index: 25000; letter-spacing: 5px; font-size: 10px; }
+      #msg-loading { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #d4af37; letter-spacing: 4px; font-size: 12px; display: none; }
     </style>
   </head>
 
   <body>
-    <!-- 品牌化權限彈窗 -->
+    <!-- 日式藝術 UI -->
     <div id="permission-overlay">
-      <div class="custom-popup">
-        <div class="brand-title">Kyrumi Studio</div>
-        <div class="main-title">AR EXPERIENCE</div>
-        <p>To view the immersive content, please enable camera and motion sensor access.</p>
-        <div id="allow-btn">Enter Now</div>
+      <div class="jp-card">
+        <h1>KYRUMI STUDIO</h1>
+        <h2>空間の記憶</h2>
+        <div id="start-btn">進入啟動</div>
       </div>
     </div>
 
-    <div id="loading-text">INITIALIZING...</div>
+    <div id="msg-loading">。啟動中。</div>
 
     <div id="preview-layer">
         <video id="preview-video" controls playsinline></video>
         <div class="popup-btns">
-            <div id="close-preview" class="btn close">CLOSE</div>
-            <a id="download-link" class="btn save">SAVE VIDEO</a>
+            <div id="close-preview" class="btn">關閉 / CLOSE</div>
+            <a id="download-link" class="btn">保存 / SAVE</a>
         </div>
     </div>
 
-    <div id="rec-btn"></div>
+    <div id="rec-btn"><div class="inner-circle"></div></div>
 
     <a-scene 
       mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiScanning: no;"
-      embedded vr-mode-ui="enabled: false"
-      device-orientation-permission-ui="enabled: false"
-      renderer="preserveDrawingBuffer: true; alpha: true; antialias: false; precision: mediump; colorManagement: true;">
+      embedded vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false"
+      renderer="preserveDrawingBuffer: true; alpha: true; antialias: false;">
       
       <a-assets>
         <video id="cardVideo" src="./AR_SMK.mp4" loop="true" crossorigin="anonymous" webkit-playsinline playsinline muted></video>
@@ -126,34 +112,30 @@
     <script>
       const sceneEl = document.querySelector('a-scene');
       const videoAsset = document.querySelector('#cardVideo');
-      const allowBtn = document.getElementById('allow-btn');
+      const startBtn = document.getElementById('start-btn');
       const recBtn = document.getElementById('rec-btn');
 
-      // 1. 修復變黑與權限啟動
-      allowBtn.addEventListener('click', async () => {
-        document.getElementById('permission-overlay').style.display = 'none';
-        document.getElementById('loading-text').style.display = 'block';
+      // 啟動邏輯：解決黑屏與感應器問題
+      startBtn.addEventListener('click', async () => {
+        document.getElementById('permission-overlay').style.opacity = '0';
+        setTimeout(() => { document.getElementById('permission-overlay').style.display = 'none'; }, 500);
+        document.getElementById('msg-loading').style.display = 'block';
 
-        // 請求傳感器權限 (iOS)
+        // 1. 請求感應器 (Motion Sensor)
         if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-          try {
-            await DeviceOrientationEvent.requestPermission();
-          } catch (e) { console.error("Motion sensor error:", e); }
+          try { await DeviceOrientationEvent.requestPermission(); } catch (e) { console.error(e); }
         }
 
-        // 延遲啟動 A-Frame 系統，確保相機優先權
-        setTimeout(() => {
-          sceneEl.systems['mindar-image-system'].start();
-        }, 300);
+        // 2. 啟動 AR 系統
+        sceneEl.systems['mindar-image-system'].start();
       });
 
-      // AR 準備就緒後顯示按鈕並隱藏 Loading
       sceneEl.addEventListener("arReady", () => {
-        document.getElementById('loading-text').style.display = 'none';
+        document.getElementById('msg-loading').style.display = 'none';
         recBtn.style.display = 'flex';
       });
 
-      // 2. 錄影引擎 (高幀率/低延遲優化)
+      // 錄影引擎 (已針對流暢度優化)
       let mediaRecorder, chunks = [], isRecording = false;
       const captureCanvas = document.createElement('canvas');
       const ctx = captureCanvas.getContext('2d', { desynchronized: true });
@@ -162,7 +144,6 @@
         if (!isRecording) return;
         const arCanvas = sceneEl.canvas;
         const videoFeed = document.querySelector('video:not([id])');
-        
         if (videoFeed && arCanvas) {
           if (captureCanvas.width !== arCanvas.clientWidth) {
             captureCanvas.width = arCanvas.clientWidth;
@@ -180,20 +161,15 @@
           recBtn.classList.add('recording');
           chunks = [];
           recordLoop();
-          
-          const stream = captureCanvas.captureStream(30); 
-          mediaRecorder = new MediaRecorder(stream, { 
-            mimeType: 'video/webm;codecs=vp8',
-            videoBitsPerSecond: 2500000 
-          });
-          
-          mediaRecorder.ondataavailable = e => { if(e.data.size > 0) chunks.push(e.data); };
+          const stream = captureCanvas.captureStream(25); // 降低些微幀率以確保錄影不 Lag
+          mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp8', videoBitsPerSecond: 2500000 });
+          mediaRecorder.ondataavailable = e => chunks.push(e.data);
           mediaRecorder.onstop = () => {
             const blob = new Blob(chunks, { type: 'video/mp4' });
             const url = URL.createObjectURL(blob);
             document.getElementById('preview-video').src = url;
             document.getElementById('download-link').href = url;
-            document.getElementById('download-link').download = `KYRUMI_AR_${Date.now()}.mp4`;
+            document.getElementById('download-link').download = `KYRUMI_STUDIO_AR.mp4`;
             document.getElementById('preview-layer').style.display = 'flex';
           };
           mediaRecorder.start();
@@ -204,26 +180,24 @@
         }
       });
 
-      // 關閉預覽
-      document.getElementById('close-preview').onclick = () => {
-        document.getElementById('preview-layer').style.display = 'none';
-        document.getElementById('preview-video').src = "";
-      };
-
-      // 定時修復：防止相機 video 標籤被 A-Frame 的 CSS 覆蓋
-      setInterval(() => {
-        const v = document.querySelector('video:not([id])');
-        if (v) {
-          v.style.setProperty('z-index', '-10', 'important');
-          v.style.setProperty('width', '100vw', 'important');
-          v.style.setProperty('height', '100vh', 'important');
-          v.style.setProperty('object-fit', 'cover', 'important');
-        }
-      }, 1000);
+      // 基礎事件與相機修正
+      document.getElementById('close-preview').onclick = () => { document.getElementById('preview-layer').style.display = 'none'; };
       
       const targetEl = document.querySelector('#ar-target');
       targetEl.addEventListener("targetFound", () => videoAsset.play());
       targetEl.addEventListener("targetLost", () => videoAsset.pause());
+
+      // 每秒檢測一次相機標籤，強制修正置底與黑屏
+      setInterval(() => {
+        const v = document.querySelector('video:not([id])');
+        if (v) {
+          v.style.setProperty('width', '100vw', 'important');
+          v.style.setProperty('height', '100vh', 'important');
+          v.style.setProperty('object-fit', 'cover', 'important');
+          v.style.setProperty('z-index', '-100', 'important');
+        }
+      }, 1000);
+
       window.addEventListener('touchstart', () => { if(videoAsset.muted) videoAsset.muted = false; }, {once: true});
     </script>
   </body>

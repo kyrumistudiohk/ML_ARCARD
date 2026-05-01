@@ -6,52 +6,50 @@
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     
     <style>
-      /* 核心：確保所有層級都是透明的，讓最底層的相機透出來 */
       html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: transparent !important; }
       
-      /* 強制相機：object-fit cover 解決黑邊，確保它在最底層 */
-      video {
+      /* 相機層：強制全屏覆蓋，解決黑邊 */
+      video:not(#cardVideo):not(#preview-video) {
         width: 100vw !important;
         height: 100vh !important;
         object-fit: cover !important;
         position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        z-index: -5 !important; 
+        top: 0 !important; left: 0 !important;
+        z-index: -5 !important;
       }
 
-      /* A-Frame 畫布透明化 */
       .a-canvas { background: transparent !important; z-index: -1 !important; }
-      a-scene { background: transparent !important; }
 
-      /* REC 按鈕：固定在右下角，不隨內容位移 */
+      /* REC 按鈕 */
       #rec-btn { 
-        position: fixed; bottom: 40px; right: 30px; 
-        width: 70px; height: 70px; border-radius: 50%; border: 4px solid #fff;
+        position: fixed; bottom: 35px; right: 25px; 
+        width: 65px; height: 65px; border-radius: 50%; border: 3px solid #fff;
         background: rgba(0,0,0,0.4); color: #fff; font-weight: bold;
         display: flex; align-items: center; justify-content: center; 
         z-index: 1000; font-family: sans-serif; cursor: pointer;
       }
-      #rec-btn.recording { border-color: #ff4444; color: #ff4444; }
+      #rec-btn.recording { border-color: #ff4444; color: #ff4444; box-shadow: 0 0 10px #ff4444; }
 
-      /* 預覽窗修復：使用固定寬度或百分比，避免過大 */
+      /* 預覽層：將內容推向底部 */
       #preview-layer {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0,0,0,0.9); z-index: 2000; display: none;
-        flex-direction: column; align-items: center; justify-content: center;
+        background: rgba(0,0,0,0.85); z-index: 2000; 
+        display: none; flex-direction: column; align-items: center; 
+        justify-content: flex-end; /* 關鍵：推到底部 */
+        padding-bottom: 50px; 
       }
+      
+      /* 縮小預覽窗 */
       #preview-video { 
-        width: 280px; /* 固定的 9:16 寬度 */
-        height: 497px; 
-        background: #000; border: 2px solid #d4af37; border-radius: 10px; 
-        object-fit: cover; 
+        width: 200px; height: 355px; /* 9:16 小比例 */
+        background: #000; border: 2px solid #d4af37; border-radius: 12px; 
+        object-fit: cover; margin-bottom: 30px;
       }
 
-      /* 按鈕區：確保在底部水平排列 */
-      .popup-btns { display: flex; gap: 15px; margin-top: 20px; }
+      .popup-btns { display: flex; gap: 20px; width: 100%; justify-content: center; }
       .btn { 
-        padding: 10px 25px; border-radius: 20px; font-weight: bold; 
-        font-family: sans-serif; text-decoration: none; cursor: pointer; font-size: 14px;
+        padding: 12px 30px; border-radius: 25px; font-weight: bold; 
+        font-family: sans-serif; text-decoration: none; cursor: pointer; font-size: 13px;
       }
       .save { background: #d4af37; color: #000; }
       .close { border: 1px solid #fff; color: #fff; }
@@ -60,7 +58,7 @@
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         background: #000; z-index: 9999; display: flex; align-items: center; justify-content: center;
       }
-      .loading-text { color: #d4af37; font-family: sans-serif; letter-spacing: 4px; }
+      .loading-text { color: #d4af37; font-family: sans-serif; letter-spacing: 4px; font-weight: bold; }
     </style>
   </head>
 
@@ -71,17 +69,19 @@
         <video id="preview-video" controls playsinline></video>
         <div class="popup-btns">
             <div id="close-preview" class="btn close">CLOSE</div>
-            <a id="download-link" class="btn save">SAVE</a>
+            <a id="download-link" class="btn save" href="#">SAVE</a>
         </div>
     </div>
 
     <div id="rec-btn">REC</div>
 
-    <!-- 移除了 renderer 內可能導致黑屏的某些參數 -->
+    <!-- 重新啟動 device-orientation-permission-ui -->
     <a-scene 
       mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiLoading: no; uiScanning: no;"
-      embedded color-management="true" vr-mode-ui="enabled: false"
-      renderer="preserveDrawingBuffer: true; alpha: true;">
+      embedded 
+      vr-mode-ui="enabled: false" 
+      device-orientation-permission-ui="enabled: true"
+      renderer="preserveDrawingBuffer: true; alpha: true; antialias: true;">
       
       <a-assets>
         <video id="cardVideo" src="./AR_SMK.mp4" loop="true" crossorigin="anonymous" webkit-playsinline playsinline muted></video>
@@ -98,14 +98,14 @@
       const videoAsset = document.querySelector('#cardVideo');
       const recBtn = document.getElementById('rec-btn');
 
-      // 1. 強制修正相機比例與黑邊 (每秒檢查一次，防止還原)
+      // 保持相機全屏覆蓋
       setInterval(() => {
-        const video = document.querySelector('video:not([id])');
-        if (video) {
-          video.style.setProperty('width', '100vw', 'important');
-          video.style.setProperty('height', '100vh', 'important');
-          video.style.setProperty('object-fit', 'cover', 'important');
-          video.style.setProperty('z-index', '-5', 'important');
+        const v = document.querySelector('video:not([id])');
+        if (v) {
+          v.style.setProperty('width', '100vw', 'important');
+          v.style.setProperty('height', '100vh', 'important');
+          v.style.setProperty('object-fit', 'cover', 'important');
+          v.style.setProperty('z-index', '-5', 'important');
         }
       }, 1000);
 
@@ -117,7 +117,6 @@
       targetEl.addEventListener("targetFound", () => videoAsset.play());
       targetEl.addEventListener("targetLost", () => videoAsset.pause());
 
-      // 錄影邏輯
       let mediaRecorder, chunks = [], isRecording = false;
       const captureCanvas = document.createElement('canvas');
       const ctx = captureCanvas.getContext('2d');
@@ -130,7 +129,6 @@
         if (videoFeed && arCanvas) {
           captureCanvas.width = arCanvas.width;
           captureCanvas.height = arCanvas.height;
-          
           const vw = videoFeed.videoWidth;
           const vh = videoFeed.videoHeight;
           const cw = captureCanvas.width;
@@ -168,7 +166,7 @@
             const url = URL.createObjectURL(blob);
             document.getElementById('preview-video').src = url;
             document.getElementById('download-link').href = url;
-            document.getElementById('download-link').download = `AR_VIDEO.mp4`;
+            document.getElementById('download-link').download = `AR_VIDEO_${Date.now()}.mp4`;
             document.getElementById('preview-layer').style.display = 'flex';
           };
           mediaRecorder.start();
@@ -184,6 +182,8 @@
         document.getElementById('preview-layer').style.display = 'none';
         document.getElementById('preview-video').src = "";
       });
+
+      window.addEventListener('touchstart', () => { if(videoAsset.muted) videoAsset.muted = false; }, {once: true});
     </script>
   </body>
 </html>

@@ -6,6 +6,7 @@
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     
     <style>
+      /* 基礎設定 */
       html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; }
       
       /* 相機層 */
@@ -17,63 +18,73 @@
 
       .a-canvas { background: transparent !important; z-index: -1 !important; }
 
-      /* Motion Sensor 權限請求 UI */
+      /* 自定義 Motion Sensor 權限 UI */
       #permission-overlay {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0,0,0,0.9); z-index: 20000;
+        background: rgba(0,0,0,0.9); z-index: 10000;
         display: flex; flex-direction: column; align-items: center; justify-content: center;
-        text-align: center; color: #fff; font-family: sans-serif;
+        color: #fff; font-family: sans-serif; text-align: center;
       }
-      .permission-card { width: 80%; max-width: 300px; padding: 30px; border: 1px solid #d4af37; border-radius: 20px; }
-      .permission-card h2 { color: #d4af37; margin-bottom: 15px; letter-spacing: 2px; }
-      .permission-card p { font-size: 14px; line-height: 1.6; margin-bottom: 25px; opacity: 0.8; }
-      #allow-btn { background: #d4af37; color: #000; padding: 12px 40px; border-radius: 30px; font-weight: bold; cursor: pointer; }
+      .perm-card { padding: 30px; border: 1px solid #d4af37; border-radius: 20px; width: 280px; }
+      .perm-card h2 { color: #d4af37; letter-spacing: 2px; margin-bottom: 10px; }
+      .perm-card p { font-size: 14px; opacity: 0.8; margin-bottom: 25px; line-height: 1.4; }
+      #start-btn { 
+        background: #d4af37; color: #000; padding: 12px 40px; 
+        border-radius: 25px; font-weight: bold; cursor: pointer; transition: 0.3s;
+      }
 
       /* REC 按鈕 */
       #rec-btn { 
-        position: fixed; bottom: 35px; right: 25px; 
-        width: 65px; height: 65px; border-radius: 50%; border: 3px solid #fff;
+        position: fixed; bottom: 40px; right: 30px; 
+        width: 70px; height: 70px; border-radius: 50%; border: 4px solid #fff;
         background: rgba(0,0,0,0.4); color: #fff; font-weight: bold;
-        display: flex; align-items: center; justify-content: center; 
+        display: none; align-items: center; justify-content: center; 
         z-index: 1000; font-family: sans-serif; cursor: pointer;
       }
-      #rec-btn.recording { border-color: #ff4444; color: #ff4444; animation: pulse 1.5s infinite; }
-      @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(255, 68, 68, 0.7); } 70% { box-shadow: 0 0 0 15px rgba(255, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(255, 68, 68, 0); } }
+      #rec-btn.recording { border-color: #ff4444; color: #ff4444; box-shadow: 0 0 15px #ff4444; }
 
-      /* 預覽視窗 */
+      /* 預覽層 */
       #preview-layer {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0,0,0,0.9); z-index: 10001; 
-        display: none; flex-direction: column; align-items: center; 
-        justify-content: flex-end; padding-bottom: 50px; 
+        background: rgba(0,0,0,0.95); z-index: 2000; display: none;
+        flex-direction: column; align-items: center; justify-content: flex-end;
+        padding-bottom: 60px;
       }
       #preview-video { 
-        width: 250px; height: 444px; /* 調大後的比例 */
+        width: 250px; /* 縮小後的寬度 */
+        height: 444px; /* 保持 9:16 */
         background: #000; border: 2px solid #d4af37; border-radius: 15px; 
-        object-fit: cover; margin-bottom: 30px;
+        object-fit: cover; margin-bottom: 25px;
       }
 
-      .popup-btns { display: flex; gap: 20px; }
-      .btn { padding: 12px 35px; border-radius: 25px; font-weight: bold; font-family: sans-serif; text-decoration: none; cursor: pointer; font-size: 14px; }
+      /* 預覽按鈕區 */
+      .popup-btns { display: flex; gap: 15px; }
+      .btn { 
+        padding: 12px 30px; border-radius: 25px; font-weight: bold; 
+        font-family: sans-serif; text-decoration: none; cursor: pointer; font-size: 14px;
+      }
       .save { background: #d4af37; color: #000; }
       .close { border: 1px solid #fff; color: #fff; }
 
-      #loading-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 9999; display: flex; align-items: center; justify-content: center; }
+      #loading-screen { 
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+        background: #000; z-index: 9999; display: none; align-items: center; justify-content: center; 
+      }
       .loading-text { color: #d4af37; font-family: sans-serif; letter-spacing: 4px; font-weight: bold; }
     </style>
   </head>
 
   <body>
-    <!-- 更好的權限請求 UI -->
+    <!-- 權限請求畫面 -->
     <div id="permission-overlay">
-      <div class="permission-card">
-        <h2>ENABLE AR</h2>
-        <p>We need motion sensor access to provide a stable AR experience.</p>
-        <div id="allow-btn">START EXPERIENCE</div>
+      <div class="perm-card">
+        <h2>KYRUMI STUDIO</h2>
+        <p>This experience requires motion sensors for better AR tracking stability.</p>
+        <div id="start-btn">START AR</div>
       </div>
     </div>
 
-    <div id="loading-screen" style="display:none;"><div class="loading-text">KYRUMI STUDIO</div></div>
+    <div id="loading-screen"><div class="loading-text">LOADING...</div></div>
 
     <div id="preview-layer">
         <video id="preview-video" controls playsinline></video>
@@ -83,12 +94,13 @@
         </div>
     </div>
 
-    <div id="rec-btn" style="display:none;">REC</div>
+    <div id="rec-btn">REC</div>
 
     <a-scene 
       mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiScanning: no;"
-      embedded vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: true"
-      renderer="preserveDrawingBuffer: true; alpha: true; antialias: true; precision: mediump;">
+      embedded vr-mode-ui="enabled: false"
+      device-orientation-permission-ui="enabled: true"
+      renderer="preserveDrawingBuffer: true; alpha: true; antialias: true; colorManagement: true;">
       
       <a-assets>
         <video id="cardVideo" src="./AR_SMK.mp4" loop="true" crossorigin="anonymous" webkit-playsinline playsinline muted></video>
@@ -104,42 +116,33 @@
       const sceneEl = document.querySelector('a-scene');
       const videoAsset = document.querySelector('#cardVideo');
       const recBtn = document.getElementById('rec-btn');
-      const allowBtn = document.getElementById('allow-btn');
 
-      // 1. 處理權限與啟動
-      allowBtn.addEventListener('click', () => {
-        // 請求權限（iOS 必備）
-        if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-          DeviceOrientationEvent.requestPermission()
-            .then(response => {
-              if (response == 'granted') startAR();
-              else alert("Sensor access denied.");
-            })
-            .catch(console.error);
-        } else {
-          startAR(); // Android 或不支援請求的瀏覽器
-        }
-      });
-
-      function startAR() {
+      // 1. 權限與啟動邏輯
+      document.getElementById('start-btn').addEventListener('click', () => {
         document.getElementById('permission-overlay').style.display = 'none';
         document.getElementById('loading-screen').style.display = 'flex';
-        sceneEl.systems['mindar-image-system'].start(); // 手動啟動 MindAR
-      }
+        
+        // 請求 iOS 傳感器權限
+        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+          DeviceOrientationEvent.requestPermission().catch(console.error);
+        }
+        
+        sceneEl.systems['mindar-image-system'].start();
+      });
 
       window.addEventListener("arReady", () => {
         document.getElementById('loading-screen').style.display = 'none';
         recBtn.style.display = 'flex';
       });
 
-      // 2. 自動鎖定相機樣式 (解決黑邊)
+      // 2. 自動修正全屏相機 (防止黑邊)
       setInterval(() => {
-        const v = document.querySelector('video:not([id])');
-        if (v) {
-          v.style.setProperty('width', '100vw', 'important');
-          v.style.setProperty('height', '100vh', 'important');
-          v.style.setProperty('object-fit', 'cover', 'important');
-          v.style.setProperty('z-index', '-5', 'important');
+        const video = document.querySelector('video:not([id])');
+        if (video) {
+          video.style.setProperty('width', '100vw', 'important');
+          video.style.setProperty('height', '100vh', 'important');
+          video.style.setProperty('object-fit', 'cover', 'important');
+          video.style.setProperty('z-index', '-5', 'important');
         }
       }, 1000);
 
@@ -147,10 +150,10 @@
       targetEl.addEventListener("targetFound", () => videoAsset.play());
       targetEl.addEventListener("targetLost", () => videoAsset.pause());
 
-      // 3. 錄影引擎 (Anti-Lag 優化)
+      // 3. 錄影與防延遲邏輯
       let mediaRecorder, chunks = [], isRecording = false;
       const captureCanvas = document.createElement('canvas');
-      const ctx = captureCanvas.getContext('2d', { desynchronized: true });
+      const ctx = captureCanvas.getContext('2d', { desynchronized: true }); // 減少繪圖延遲
 
       function recordLoop() {
         if (!isRecording) return;
@@ -193,10 +196,10 @@
           chunks = [];
           recordLoop();
 
-          const stream = captureCanvas.captureStream(30); // 鎖定幀率
+          const stream = captureCanvas.captureStream(30); // 鎖定 30fps 減輕負擔
           mediaRecorder = new MediaRecorder(stream, { 
             mimeType: 'video/webm;codecs=vp8',
-            videoBitsPerSecond: 3000000 // 提升位元率保證畫質
+            videoBitsPerSecond: 2500000 
           });
           
           mediaRecorder.ondataavailable = e => { if(e.data.size > 0) chunks.push(e.data); };
@@ -205,7 +208,7 @@
             const url = URL.createObjectURL(blob);
             document.getElementById('preview-video').src = url;
             document.getElementById('download-link').href = url;
-            document.getElementById('download-link').download = `KYRUMI_AR_${Date.now()}.mp4`;
+            document.getElementById('download-link').download = `AR_KYRUMI_${Date.now()}.mp4`;
             document.getElementById('preview-layer').style.display = 'flex';
           };
           mediaRecorder.start();
@@ -221,7 +224,8 @@
         document.getElementById('preview-layer').style.display = 'none';
         document.getElementById('preview-video').src = "";
       });
-
+      
+      // 點擊觸發聲音
       window.addEventListener('touchstart', () => { if(videoAsset.muted) videoAsset.muted = false; }, {once: true});
     </script>
   </body>

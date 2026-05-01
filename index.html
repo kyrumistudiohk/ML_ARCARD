@@ -6,88 +6,103 @@
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     
     <style>
-      /* 基礎層級：確保一切透明，背景黑色僅作為緩衝 */
-      html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; }
+      /* 核心：確保所有層級透明 */
+      html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: transparent !important; }
       
-      /* 相機層：最高優先權置底 */
-      video:not(#cardVideo):not(#preview-video) {
-        width: 100vw !important; height: 100vh !important;
-        object-fit: cover !important; position: fixed !important;
-        top: 0 !important; left: 0 !important; z-index: -10 !important;
+      /* 相機層：保持你原始的設定以防黑屏 */
+      video {
+        width: 100vw !important;
+        height: 100vh !important;
+        object-fit: cover !important;
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        z-index: -5 !important; 
       }
 
-      .a-canvas { background: transparent !important; z-index: -5 !important; }
+      .a-canvas { background: transparent !important; z-index: -1 !important; }
+      a-scene { background: transparent !important; }
 
-      /* 啟動 UI */
-      #start-overlay {
-        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: #000; z-index: 30000;
-        display: flex; flex-direction: column; align-items: center; justify-content: center;
-      }
-      .start-card { text-align: center; color: #fff; font-family: sans-serif; border: 1px solid #d4af37; padding: 40px 20px; border-radius: 20px; width: 80%; }
-      #start-btn { 
-        background: #d4af37; color: #000; padding: 15px 40px; 
-        border-radius: 30px; font-weight: bold; cursor: pointer; margin-top: 20px;
-        box-shadow: 0 4px 15px rgba(212, 175, 55, 0.4);
-      }
-
-      /* REC 按鈕 */
+      /* 日系藝術風格 REC 按鈕 */
       #rec-btn { 
-        position: fixed; bottom: 35px; right: 25px; 
-        width: 65px; height: 65px; border-radius: 50%; border: 3px solid #fff;
-        background: rgba(0,0,0,0.4); color: #fff; font-weight: bold;
-        display: none; align-items: center; justify-content: center; 
-        z-index: 1000; font-family: sans-serif;
+        position: fixed; bottom: 40px; right: 30px; 
+        width: 65px; height: 65px; border-radius: 50%; border: 1px solid #d4af37;
+        background: rgba(13, 13, 13, 0.7); color: #d4af37;
+        display: flex; flex-direction: column; align-items: center; justify-content: center; 
+        z-index: 1000; font-family: "serif", "Noto Serif JP", "MS Mincho", sans-serif; 
+        cursor: pointer; transition: all 0.3s;
       }
-      #rec-btn.recording { border-color: #ff4444; color: #ff4444; }
+      #rec-btn .rec-text { font-size: 10px; letter-spacing: 1px; font-weight: bold; }
+      #rec-btn .jp-text { font-size: 8px; margin-top: 2px; opacity: 0.8; }
+      #rec-btn.recording { border-color: #ff4444; color: #ff4444; background: rgba(0,0,0,0.9); }
 
-      /* 預覽窗 - 大小適中版 */
+      /* 預覽窗修復 */
       #preview-layer {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0,0,0,0.95); z-index: 20000; 
-        display: none; flex-direction: column; align-items: center; 
-        justify-content: center;
+        background: rgba(0,0,0,0.95); z-index: 2000; display: none;
+        flex-direction: column; align-items: center; justify-content: center;
       }
       #preview-video { 
-        width: 260px; height: 462px; background: #000; 
-        border: 2px solid #d4af37; border-radius: 15px; object-fit: cover; 
+        width: 280px; height: 497px; 
+        background: #000; border: 1px solid #d4af37; border-radius: 8px; 
+        object-fit: cover; 
       }
 
-      .popup-btns { display: flex; gap: 20px; margin-top: 30px; }
-      .btn { padding: 12px 30px; border-radius: 25px; font-weight: bold; font-family: sans-serif; cursor: pointer; }
-      .save { background: #d4af37; color: #000; text-decoration: none; }
-      .close { border: 1px solid #fff; color: #fff; }
+      /* 日系風格彈窗按鈕 */
+      .popup-btns { display: flex; gap: 0; margin-top: 25px; border: 1px solid #d4af37; border-radius: 4px; overflow: hidden; }
+      .btn { 
+        padding: 12px 30px; font-weight: normal; 
+        font-family: "serif", sans-serif; text-decoration: none; cursor: pointer; font-size: 13px;
+        letter-spacing: 2px; text-align: center; color: #d4af37;
+      }
+      .save { background: #d4af37; color: #000; border: none; }
+      .close { background: transparent; color: #d4af37; border: none; border-right: 1px solid #d4af37; }
 
-      #loading-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; z-index: 25000; display: none; align-items: center; justify-content: center; color: #d4af37; font-family: sans-serif; letter-spacing: 3px; }
+      /* 日系藝術 Loading 畫面 */
+      #loading-screen {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: #0d0d0d; z-index: 9999; display: flex; align-items: center; justify-content: center;
+      }
+      .jp-loading-card {
+        padding: 40px 30px; border: 1px solid #d4af37; position: relative; text-align: center;
+      }
+      /* 和風四角飾線 */
+      .jp-loading-card::before { content: ""; position: absolute; top: -5px; left: -5px; width: 15px; height: 15px; border-top: 2px solid #d4af37; border-left: 2px solid #d4af37; }
+      .jp-loading-card::after { content: ""; position: absolute; bottom: -5px; right: -5px; width: 15px; height: 15px; border-bottom: 2px solid #d4af37; border-right: 2px solid #d4af37; }
+      
+      .loading-title { color: #d4af37; font-family: "serif", sans-serif; letter-spacing: 5px; font-size: 20px; margin-bottom: 5px; }
+      .loading-sub { color: #d4af37; font-size: 10px; letter-spacing: 2px; opacity: 0.7; font-family: "serif", sans-serif; }
     </style>
   </head>
 
   <body>
-    <!-- 啟動與權限請求介面 -->
-    <div id="start-overlay">
-      <div class="start-card">
-        <h2 style="color:#d4af37; letter-spacing:2px;">KYRUMI AR</h2>
-        <p style="opacity:0.7; font-size:14px;">Allow camera and motion sensors to begin</p>
-        <div id="start-btn">ENTER EXPERIENCE</div>
+    <!-- 日系 Loading 畫面 -->
+    <div id="loading-screen">
+      <div class="jp-loading-card">
+        <div class="loading-title">KYRUMI STUDIO</div>
+        <div class="loading-sub">空間の記憶 | MEMORY OF SPACE</div>
       </div>
     </div>
 
-    <div id="loading-screen">LOADING...</div>
-
+    <!-- 預覽視窗 -->
     <div id="preview-layer">
         <video id="preview-video" controls playsinline></video>
         <div class="popup-btns">
-            <div id="close-preview" class="btn close">CLOSE</div>
-            <a id="download-link" class="btn save">SAVE VIDEO</a>
+            <div id="close-preview" class="btn close">關閉 / CLOSE</div>
+            <a id="download-link" class="btn save">保存 / SAVE</a>
         </div>
     </div>
 
-    <div id="rec-btn">REC</div>
+    <!-- 錄影按鈕 -->
+    <div id="rec-btn">
+      <span class="rec-text">REC</span>
+      <span class="jp-text">録画</span>
+    </div>
 
     <a-scene 
-      mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiScanning: no;"
-      embedded vr-mode-ui="enabled: false"
-      renderer="preserveDrawingBuffer: true; alpha: true; antialias: false; precision: mediump;">
+      mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiLoading: no; uiScanning: no;"
+      embedded color-management="true" vr-mode-ui="enabled: false"
+      renderer="preserveDrawingBuffer: true; alpha: true;">
       
       <a-assets>
         <video id="cardVideo" src="./AR_SMK.mp4" loop="true" crossorigin="anonymous" webkit-playsinline playsinline muted></video>
@@ -102,34 +117,35 @@
     <script>
       const sceneEl = document.querySelector('a-scene');
       const videoAsset = document.querySelector('#cardVideo');
-      const startBtn = document.getElementById('start-btn');
       const recBtn = document.getElementById('rec-btn');
 
-      // 1. 核心啟動邏輯 (解決黑屏與不跳權限問題)
-      startBtn.addEventListener('click', async () => {
-        document.getElementById('start-overlay').style.display = 'none';
-        document.getElementById('loading-screen').style.display = 'flex';
-
-        // 請求 iOS 動作感應權限
-        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-          try {
-            await DeviceOrientationEvent.requestPermission();
-          } catch (e) { console.error("Permission denied", e); }
+      // 強制修正相機比例與黑邊
+      setInterval(() => {
+        const video = document.querySelector('video:not([id])');
+        if (video) {
+          video.style.setProperty('width', '100vw', 'important');
+          video.style.setProperty('height', '100vh', 'important');
+          video.style.setProperty('object-fit', 'cover', 'important');
+          video.style.setProperty('z-index', '-5', 'important');
         }
+      }, 1000);
 
-        // 啟動 AR
-        sceneEl.systems['mindar-image-system'].start();
+      window.addEventListener("arReady", () => {
+        // 使用淡出動畫提升藝術感
+        const loader = document.getElementById('loading-screen');
+        loader.style.transition = "opacity 0.8s ease";
+        loader.style.opacity = "0";
+        setTimeout(() => { loader.style.display = 'none'; }, 800);
       });
 
-      sceneEl.addEventListener("arReady", () => {
-        document.getElementById('loading-screen').style.display = 'none';
-        recBtn.style.display = 'flex';
-      });
+      const targetEl = document.querySelector('#ar-target');
+      targetEl.addEventListener("targetFound", () => videoAsset.play());
+      targetEl.addEventListener("targetLost", () => videoAsset.pause());
 
-      // 2. 錄影引擎優化 (解決 Lag)
+      // 錄影邏輯
       let mediaRecorder, chunks = [], isRecording = false;
       const captureCanvas = document.createElement('canvas');
-      const ctx = captureCanvas.getContext('2d', { alpha: false, desynchronized: true }); // 效能優化
+      const ctx = captureCanvas.getContext('2d');
 
       function recordLoop() {
         if (!isRecording) return;
@@ -137,28 +153,39 @@
         const videoFeed = document.querySelector('video:not([id])');
         
         if (videoFeed && arCanvas) {
-          if (captureCanvas.width !== arCanvas.clientWidth) {
-            captureCanvas.width = arCanvas.clientWidth;
-            captureCanvas.height = arCanvas.clientHeight;
-          }
+          captureCanvas.width = arCanvas.width;
+          captureCanvas.height = arCanvas.height;
           
-          // 繪製背景相機
-          ctx.drawImage(videoFeed, 0, 0, captureCanvas.width, captureCanvas.height);
-          // 繪製 AR 內容
-          ctx.drawImage(arCanvas, 0, 0, captureCanvas.width, captureCanvas.height);
+          const vw = videoFeed.videoWidth;
+          const vh = videoFeed.videoHeight;
+          const cw = captureCanvas.width;
+          const ch = captureCanvas.height;
+          const vRatio = vw / vh;
+          const cRatio = cw / ch;
+
+          let sx, sy, sw, sh;
+          if (vRatio > cRatio) {
+            sw = vh * cRatio; sh = vh;
+            sx = (vw - sw) / 2; sy = 0;
+          } else {
+            sw = vw; sh = vw / cRatio;
+            sx = 0; sy = (vh - sh) / 2;
+          }
+
+          ctx.drawImage(videoFeed, sx, sy, sw, sh, 0, 0, cw, ch);
+          ctx.drawImage(arCanvas, 0, 0, cw, ch);
         }
         requestAnimationFrame(recordLoop);
       }
 
-      recBtn.addEventListener('click', () => {
+      recBtn.addEventListener('click', function() {
         if (!isRecording) {
           isRecording = true;
-          recBtn.classList.add('recording');
-          recBtn.innerText = "STOP";
+          this.classList.add('recording');
+          this.innerHTML = '<span class="rec-text">STOP</span><span class="jp-text">停止</span>';
           chunks = [];
-          
           recordLoop();
-          const stream = captureCanvas.captureStream(25); // 降低到 25fps 換取流暢度
+          const stream = captureCanvas.captureStream(30);
           mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp8' });
           mediaRecorder.ondataavailable = e => chunks.push(e.data);
           mediaRecorder.onstop = () => {
@@ -166,35 +193,22 @@
             const url = URL.createObjectURL(blob);
             document.getElementById('preview-video').src = url;
             document.getElementById('download-link').href = url;
-            document.getElementById('download-link').download = `AR_REC_${Date.now()}.mp4`;
+            document.getElementById('download-link').download = `KYRUMI_STUDIO_AR.mp4`;
             document.getElementById('preview-layer').style.display = 'flex';
           };
           mediaRecorder.start();
         } else {
           isRecording = false;
-          recBtn.classList.remove('recording');
-          recBtn.innerText = "REC";
+          this.classList.remove('recording');
+          this.innerHTML = '<span class="rec-text">REC</span><span class="jp-text">録画</span>';
           mediaRecorder.stop();
         }
       });
 
-      // 3. 基礎事件
-      const targetEl = document.querySelector('#ar-target');
-      targetEl.addEventListener("targetFound", () => videoAsset.play());
-      targetEl.addEventListener("targetLost", () => videoAsset.pause());
-      document.getElementById('close-preview').onclick = () => {
+      document.getElementById('close-preview').addEventListener('click', () => {
         document.getElementById('preview-layer').style.display = 'none';
-      };
-
-      // 解決黑邊與自動播放
-      setInterval(() => {
-        const v = document.querySelector('video:not([id])');
-        if (v) {
-          v.style.width = '100vw'; v.style.height = '100vh';
-          v.style.objectFit = 'cover'; v.style.zIndex = '-10';
-        }
-      }, 1000);
-      window.addEventListener('touchstart', () => { if(videoAsset.muted) videoAsset.muted = false; }, {once: true});
+        document.getElementById('preview-video').src = "";
+      });
     </script>
   </body>
 </html>

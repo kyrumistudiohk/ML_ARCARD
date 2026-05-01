@@ -6,56 +6,51 @@
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     
     <style>
+      /* 基礎重設，確保畫布透明 */
       html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; }
       
-      /* 強制相機全屏，解決右邊黑邊 */
+      /* 關鍵：強制所有 video 標籤（包括 MindAR 生成的）置底且鋪滿 */
       video {
         width: 100vw !important;
         height: 100vh !important;
         object-fit: cover !important;
         position: fixed !important;
-        top: 0; left: 0;
+        top: 50% !important;
+        left: 50% !important;
+        transform: translate(-50%, -50%) !important;
         z-index: -2 !important;
       }
 
-      .a-canvas { background: transparent !important; }
-      .mindar-ui-overlay, .mindar-ui-scanning, .mindar-ui-loading { display: none !important; }
+      /* A-Frame 畫布必須置於 video 之上且背景透明 */
+      .a-canvas { z-index: -1 !important; background: transparent !important; }
 
+      /* UI 介面 */
       #loading-screen {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: #000; z-index: 9999; display: flex; align-items: center; justify-content: center;
-        transition: opacity 0.5s; pointer-events: none;
+        background: #000; z-index: 10000; display: flex; align-items: center; justify-content: center;
+        transition: opacity 0.5s;
       }
       .loading-text { color: #d4af37; font-family: sans-serif; font-weight: bold; letter-spacing: 5px; }
 
-      /* UI 控制 */
       .controls { position: fixed; bottom: 50px; right: 30px; z-index: 1000; }
       #rec-btn { 
-        width: 75px; height: 75px; border-radius: 50%;
-        border: 4px solid #fff; background: rgba(0,0,0,0.3);
-        color: #fff; font-weight: bold; display: flex; align-items: center; justify-content: center;
-        cursor: pointer; font-family: sans-serif; font-size: 14px;
+        width: 75px; height: 75px; border-radius: 50%; border: 4px solid #fff;
+        background: rgba(0,0,0,0.3); color: #fff; font-weight: bold;
+        display: flex; align-items: center; justify-content: center; font-family: sans-serif;
       }
       #rec-btn.recording { border-color: #ff4444; color: #ff4444; box-shadow: 0 0 15px #ff4444; }
 
-      /* 9:16 比例預覽 */
+      /* 9:16 預覽窗 */
       #preview-layer {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0,0,0,0.9); z-index: 10001; 
-        display: none; flex-direction: column; align-items: center; justify-content: center;
+        background: rgba(0,0,0,0.9); z-index: 10001; display: none;
+        flex-direction: column; align-items: center; justify-content: center;
       }
-      #preview-video { 
-        width: 65%; aspect-ratio: 9 / 16; 
-        background: #000; border: 2px solid #d4af37; border-radius: 15px;
-        object-fit: cover; margin-bottom: 30px;
-      }
-      .popup-btns { display: flex; gap: 20px; }
-      .popup-btn { 
-        padding: 12px 35px; border-radius: 30px; font-weight: bold; 
-        text-decoration: none; font-size: 14px; font-family: sans-serif; cursor: pointer;
-      }
-      .save-btn { background: #d4af37; color: #000; }
-      .close-btn { border: 1px solid #fff; color: #fff; }
+      #preview-video { width: 65%; aspect-ratio: 9/16; background: #000; border: 2px solid #d4af37; border-radius: 15px; object-fit: cover; }
+      .popup-btns { display: flex; gap: 20px; margin-top: 20px; }
+      .btn { padding: 12px 30px; border-radius: 20px; font-weight: bold; font-family: sans-serif; text-decoration: none; cursor: pointer; }
+      .save { background: #d4af37; color: #000; }
+      .close { border: 1px solid #fff; color: #fff; }
     </style>
   </head>
 
@@ -65,39 +60,46 @@
     <div id="preview-layer">
         <video id="preview-video" controls playsinline></video>
         <div class="popup-btns">
-            <div id="close-preview" class="popup-btn close-btn">CLOSE</div>
-            <a id="download-link" class="popup-btn save-btn" href="#">SAVE</a>
+            <div id="close-preview" class="btn close">CLOSE</div>
+            <a id="download-link" class="btn save">SAVE</a>
         </div>
     </div>
 
     <div class="controls"><div id="rec-btn">REC</div></div>
 
     <a-scene 
-      mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiLoading: no; uiScanning: no; filterMinCF: 0.001; filterBeta: 0.01;"
-      renderer="preserveDrawingBuffer: true; alpha: true; antialias: true;" 
+      mindar-image="imageTargetSrc: ./targets.mind; autoStart: true; uiLoading: no; uiScanning: no;"
+      renderer="preserveDrawingBuffer: true; alpha: true;" 
       vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
-
+      
       <a-assets>
         <video id="cardVideo" src="./AR_SMK.mp4" loop="true" crossorigin="anonymous" webkit-playsinline playsinline muted></video>
       </a-assets>
 
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
       <a-entity id="ar-target" mindar-image-target="targetIndex: 0">
-        <a-video id="video-obj" src="#cardVideo" position="0 0.44 0" width="1" height="0.56"></a-video>
+        <a-video src="#cardVideo" position="0 0.44 0" width="1" height="0.56"></a-video>
       </a-entity>
     </a-scene>
 
     <script>
       const sceneEl = document.querySelector('a-scene');
       const videoAsset = document.querySelector('#cardVideo');
-      const recBtn = document.getElementById('rec-btn');
+      
+      // 核心：每隔 500ms 強制修正一次 video 樣式，防止 MindAR 自動還原導致黑邊
+      const fixVideo = () => {
+        const videos = document.querySelectorAll('video:not(#cardVideo):not(#preview-video)');
+        videos.forEach(v => {
+          v.style.width = '100vw';
+          v.style.height = '100vh';
+          v.style.objectFit = 'cover';
+        });
+      };
+      setInterval(fixVideo, 500);
 
-      // 監聽 AR 準備好，強制視窗 Resize 一次確保鋪滿
       window.addEventListener("arReady", () => {
-        setTimeout(() => {
-          window.dispatchEvent(new Event('resize'));
-          document.getElementById('loading-screen').style.opacity = '0';
-        }, 1500);
+        document.getElementById('loading-screen').style.opacity = '0';
+        setTimeout(() => document.getElementById('loading-screen').remove(), 500);
       });
 
       const targetEl = document.querySelector('#ar-target');
@@ -106,25 +108,22 @@
 
       let mediaRecorder, chunks = [], isRecording = false;
       const captureCanvas = document.createElement('canvas');
-      const ctx = captureCanvas.getContext('2d', { alpha: false }); // 關閉透明度提升效能
+      const ctx = captureCanvas.getContext('2d', { desynchronized: true });
 
       function recordLoop() {
         if (!isRecording) return;
-        
         const arCanvas = sceneEl.canvas;
         const videoFeed = document.querySelector('video:not([id])');
         
         if (videoFeed && arCanvas) {
-          // 初始化畫布大小（只需做一次或在視窗改變時做）
           if (captureCanvas.width !== arCanvas.width) {
             captureCanvas.width = arCanvas.width;
             captureCanvas.height = arCanvas.height;
           }
-
           const cw = captureCanvas.width;
           const ch = captureCanvas.height;
-
-          // 相機裁剪邏輯
+          
+          // 計算相機裁剪 (Center Crop)
           const vw = videoFeed.videoWidth;
           const vh = videoFeed.videoHeight;
           const vRatio = vw / vh;
@@ -139,41 +138,36 @@
             sx = 0; sy = (vh - sh) / 2;
           }
 
-          // 繪製順序：相機 -> AR
           ctx.drawImage(videoFeed, sx, sy, sw, sh, 0, 0, cw, ch);
           ctx.drawImage(arCanvas, 0, 0, cw, ch);
         }
         requestAnimationFrame(recordLoop);
       }
 
-      recBtn.addEventListener('click', () => {
+      document.getElementById('rec-btn').addEventListener('click', function() {
         if (!isRecording) {
           isRecording = true;
-          recBtn.classList.add('recording');
-          recBtn.innerHTML = "STOP";
-          
+          this.classList.add('recording');
+          this.innerHTML = "STOP";
           chunks = [];
           recordLoop();
 
           const stream = captureCanvas.captureStream(30);
-          // 使用 H264 格式（如果支援），通常比 WebM 順滑
-          const options = { mimeType: 'video/webm;codecs=vp8', videoBitsPerSecond: 2500000 };
-          mediaRecorder = new MediaRecorder(stream, options);
-          
+          mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp8' });
           mediaRecorder.ondataavailable = e => chunks.push(e.data);
           mediaRecorder.onstop = () => {
             const blob = new Blob(chunks, { type: 'video/mp4' });
             const url = URL.createObjectURL(blob);
             document.getElementById('preview-video').src = url;
             document.getElementById('download-link').href = url;
-            document.getElementById('download-link').download = `AR_STUDIO_${Date.now()}.mp4`;
+            document.getElementById('download-link').download = `AR_CAPTURE.mp4`;
             document.getElementById('preview-layer').style.display = 'flex';
           };
           mediaRecorder.start();
         } else {
           isRecording = false;
-          recBtn.classList.remove('recording');
-          recBtn.innerHTML = "REC";
+          this.classList.remove('recording');
+          this.innerHTML = "REC";
           mediaRecorder.stop();
         }
       });
@@ -183,7 +177,6 @@
         document.getElementById('preview-video').src = "";
       });
 
-      // 點擊畫面嘗試解鎖音效
       window.addEventListener('click', () => { if(videoAsset.muted) videoAsset.muted = false; }, {once: true});
     </script>
   </body>

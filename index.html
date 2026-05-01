@@ -6,9 +6,10 @@
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     
     <style>
+      /* 確保背景唔會變黑，相機永遠喺最底 */
       html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; }
       
-      /* 1. 解決右邊黑邊：強制相機鋪滿 */
+      /* 強制修正相機畫面：填滿全屏，解決右邊黑邊 */
       video[autoplay]:not(#cardVideo):not(#preview-video) {
         width: 100vw !important;
         height: 100vh !important;
@@ -21,7 +22,7 @@
       .a-canvas { background: transparent !important; z-index: -1 !important; }
       .mindar-ui-overlay, .mindar-ui-scanning, .mindar-ui-loading { display: none !important; }
 
-      /* Loading Screen */
+      /* Loading 介面 */
       #loading-screen {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         background: #000; z-index: 9999; display: flex; align-items: center; justify-content: center;
@@ -39,20 +40,17 @@
       }
       #rec-btn.recording { border-color: #ff4444; color: #ff4444; }
 
-      /* 預覽窗：9:16 手機比例 */
+      /* 9:16 手機比例預覽窗 */
       #preview-layer {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0,0,0,0.9); z-index: 10001; 
+        background: rgba(0,0,0,0.95); z-index: 10001; 
         display: none; flex-direction: column; align-items: center; justify-content: center;
       }
-
       #preview-video { 
-        width: 60%; 
-        aspect-ratio: 9 / 16; 
-        background: #000; border: 2px solid #d4af37; border-radius: 12px;
-        object-fit: cover; margin-bottom: 30px;
+        width: 65%; aspect-ratio: 9 / 16; 
+        background: #000; border: 2px solid #d4af37; border-radius: 15px;
+        object-fit: cover; margin-bottom: 35px;
       }
-
       .popup-btns { display: flex; gap: 20px; }
       .popup-btn { 
         padding: 12px 35px; border-radius: 30px; font-weight: bold; 
@@ -98,6 +96,7 @@
       window.addEventListener("arReady", () => {
         setTimeout(() => {
           document.getElementById('loading-screen').style.opacity = '0';
+          // 預熱影片
           videoAsset.play().then(() => videoAsset.pause()); 
         }, 1500);
       });
@@ -106,74 +105,79 @@
       targetEl.addEventListener("targetFound", () => videoAsset.play());
       targetEl.addEventListener("targetLost", () => videoAsset.pause());
 
-      let mediaRecorder, chunks = [], isRecording = false, animationFrameId;
-      const streamCanvas = document.createElement('canvas');
-      const sCtx = streamCanvas.getContext('2d');
+      let mediaRecorder, chunks = [], isRecording = false;
+      let captureCanvas = document.createElement('canvas');
+      let ctx = captureCanvas.getContext('2d');
+      let recordTimer;
 
-      function recordFrame() {
-        if (!isRecording) return;
-
+      function startRecording() {
         const arCanvas = sceneEl.canvas;
         const videoFeed = document.querySelector('video[autoplay]:not(#cardVideo):not(#preview-video)');
         
-        if (videoFeed && arCanvas) {
-            // 錄影畫布大小對齊螢幕
-            streamCanvas.width = window.innerWidth * window.devicePixelRatio;
-            streamCanvas.height = window.innerHeight * window.devicePixelRatio;
+        if (!videoFeed) return;
 
-            const cW = streamCanvas.width;
-            const cH = streamCanvas.height;
+        // 設定畫布大小為手機螢幕解析度
+        captureCanvas.width = arCanvas.clientWidth * window.devicePixelRatio;
+        captureCanvas.height = arCanvas.clientHeight * window.devicePixelRatio;
 
-            // 1. 相機 Center Crop 邏輯
-            const vW = videoFeed.videoWidth;
-            const vH = videoFeed.videoHeight;
-            const vRatio = vW / vH;
-            const cRatio = cW / cH;
+        const drawFrame = () => {
+          if (!isRecording) return;
 
-            let sx, sy, sw, sh;
-            if (vRatio > cRatio) {
-                sw = vH * cRatio; sh = vH;
-                sx = (vW - sw) / 2; sy = 0;
-            } else {
-                sw = vW; sh = vW / cRatio;
-                sx = 0; sy = (vH - sh) / 2;
-            }
+          const cw = captureCanvas.width;
+          const ch = captureCanvas.height;
 
-            sCtx.clearRect(0, 0, cW, cH);
-            // 繪製相機
-            sCtx.drawImage(videoFeed, sx, sy, sw, sh, 0, 0, cW, cH);
-            // 繪製 AR 內容 (AR 畫布本身就是螢幕比例，直接鋪滿)
-            sCtx.drawImage(arCanvas, 0, 0, cW, cH);
-        }
-        animationFrameId = requestAnimationFrame(recordFrame);
+          // 計算相機裁剪 (Center Crop)
+          const vw = videoFeed.videoWidth;
+          const vh = videoFeed.videoHeight;
+          const videoRatio = vw / vh;
+          const canvasRatio = cw / ch;
+
+          let sx, sy, sw, sh;
+          if (videoRatio > canvasRatio) {
+            sw = vh * canvasRatio; sh = vh;
+            sx = (vw - sw) / 2; sy = 0;
+          } else {
+            sw = vw; sh = vw / canvasRatio;
+            sx = 0; sy = (vh - sh) / 2;
+          }
+
+          ctx.clearRect(0, 0, cw, ch);
+          // 1. 先畫相機畫面
+          ctx.drawImage(videoFeed, sx, sy, sw, sh, 0, 0, cw, cH);
+          // 2. 再疊加 AR Canvas
+          ctx.drawImage(arCanvas, 0, 0, cw, ch);
+
+          requestAnimationFrame(drawFrame);
+        };
+
+        isRecording = true;
+        drawFrame();
+
+        const stream = captureCanvas.captureStream(30);
+        mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp8' });
+        
+        mediaRecorder.ondataavailable = e => chunks.push(e.data);
+        mediaRecorder.onstop = () => {
+          const blob = new Blob(chunks, { type: 'video/mp4' });
+          const url = URL.createObjectURL(blob);
+          document.getElementById('preview-video').src = url;
+          document.getElementById('download-link').href = url;
+          document.getElementById('download-link').download = `AR_VIDEO_${Date.now()}.mp4`;
+          document.getElementById('preview-layer').style.display = 'flex';
+          chunks = [];
+        };
+        mediaRecorder.start();
       }
 
-      document.querySelector('#rec-btn').addEventListener('click', function() {
+      document.getElementById('rec-btn').addEventListener('click', function() {
         if (!isRecording) {
-            isRecording = true;
             this.classList.add('recording');
             this.innerHTML = "STOP";
-            
-            chunks = [];
-            recordFrame();
-
-            const stream = streamCanvas.captureStream(30);
-            mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
-            mediaRecorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
-            mediaRecorder.onstop = () => {
-                const blob = new Blob(chunks, { type: 'video/mp4' });
-                const url = URL.createObjectURL(blob);
-                document.getElementById('preview-video').src = url;
-                document.getElementById('download-link').href = url;
-                document.getElementById('download-link').download = `KYRUMI_AR.mp4`;
-                document.getElementById('preview-layer').style.display = 'flex';
-            };
-            mediaRecorder.start();
+            startRecording();
         } else {
             isRecording = false;
             this.classList.remove('recording');
             this.innerHTML = "REC";
-            cancelAnimationFrame(animationFrameId);
             mediaRecorder.stop();
         }
       });

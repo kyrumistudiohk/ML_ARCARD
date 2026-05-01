@@ -16,47 +16,35 @@
         align-items: center; justify-content: center; z-index: 2000; transition: opacity 0.8s;
       }
 
-      /* 功能 2: 拍照及錄影按鈕 */
+      /* 功能 2: 拍照及錄影按鈕 (加大間距，避免遮擋) */
       .capture-container {
-        position: absolute; bottom: 30px; width: 100%; display: flex;
-        justify-content: space-evenly; align-items: center; z-index: 1000;
+        position: absolute; bottom: 40px; width: 100%; display: flex;
+        justify-content: space-around; align-items: center; z-index: 1000;
       }
       .btn {
-        width: 60px; height: 60px; border-radius: 50%; border: 4px solid #fff;
-        background: rgba(255,255,255,0.3); cursor: pointer; display: flex;
-        align-items: center; justify-content: center; color: white; font-size: 10px;
-        font-weight: bold; text-align: center; line-height: 1.2;
+        width: 70px; height: 70px; border-radius: 50%; border: 4px solid #fff;
+        background: rgba(0,0,0,0.5); cursor: pointer; display: flex;
+        align-items: center; justify-content: center; color: white; font-size: 11px;
+        font-weight: bold; text-align: center; pointer-events: auto;
       }
-      #photo-btn { background: rgba(212, 175, 55, 0.6); }
-      #record-btn { background: rgba(255, 0, 0, 0.6); }
-      #record-btn.recording { animation: pulse 1s infinite; background: red; }
-      @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+      #photo-btn { border-color: #d4af37; }
+      #record-btn { border-color: #ff4444; }
 
       /* UI 提示 */
       #ui {
-        position: absolute; top: 30px; width: 100%; text-align: center; z-index: 999;
-        color: white; pointer-events: none; opacity: 0; transition: 0.5s;
+        position: absolute; top: 20px; width: 100%; text-align: center; z-index: 999;
+        color: white; pointer-events: none; transition: 0.5s;
       }
       .instruction-box {
         display: inline-block; background: rgba(0, 0, 0, 0.7);
-        padding: 10px 20px; border-radius: 50px; border: 1px solid #d4af37;
+        padding: 8px 20px; border-radius: 50px; border: 1px solid #d4af37;
       }
 
       /* 功能 4: 狀態提示 */
       #status-msg {
-        position: absolute; bottom: 120px; width: 100%; text-align: center;
-        color: #ff4444; font-size: 14px; z-index: 999; display: none;
+        position: absolute; bottom: 130px; width: 100%; text-align: center;
+        color: #ff4444; font-size: 12px; z-index: 999; display: none;
       }
-
-      #scan-overlay {
-        position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-        width: 80vw; height: 80vw; max-width: 300px; z-index: 998;
-      }
-      .corner { position: absolute; width: 25px; height: 25px; border: 3px solid #d4af37; }
-      .tl { top: 0; left: 0; border-right: 0; border-bottom: 0; border-top-left-radius: 12px; }
-      .tr { top: 0; right: 0; border-left: 0; border-bottom: 0; border-top-right-radius: 12px; }
-      .bl { bottom: 0; left: 0; border-right: 0; border-top: 0; border-bottom-left-radius: 12px; }
-      .br { bottom: 0; right: 0; border-left: 0; border-top: 0; border-bottom-right-radius: 12px; }
 
       .hidden { display: none !important; }
     </style>
@@ -65,33 +53,27 @@
   <body>
     <div id="loading-screen">
       <div style="letter-spacing: 2px;">KYRUMI STUDIO</div>
-      <div style="font-size: 10px; margin-top: 8px;">LOADING...</div>
+      <div style="font-size: 10px; margin-top: 8px;">PREPARING AR...</div>
     </div>
 
     <div id="ui">
       <div class="instruction-box">
-        <span style="font-size: 16px; font-weight: bold; display: block;">請對準卡片全貌</span>
-        <span style="font-size: 10px; opacity: 0.8;">ALIGN CAMERA WITH CARD</span>
+        <span style="font-size: 14px; font-weight: bold; display: block;">請對準卡片全貌</span>
+        <span style="font-size: 9px; opacity: 0.8;">ALIGN CAMERA WITH CARD</span>
       </div>
     </div>
 
-    <div id="status-msg">環境太暗或距離太近<br>TOO DARK OR TOO CLOSE</div>
+    <div id="status-msg">環境太暗或距離太近 | TOO DARK OR TOO CLOSE</div>
 
-    <!-- 拍照與錄影按鈕 -->
     <div class="capture-container">
       <div id="photo-btn" class="btn">SNAP<br>拍照</div>
       <div id="record-btn" class="btn">REC<br>錄影</div>
     </div>
 
-    <div id="scan-overlay">
-      <div class="corner tl"></div><div class="corner tr"></div>
-      <div class="corner bl"></div><div class="corner br"></div>
-    </div>
-
     <a-scene 
-      mindar-image="imageTargetSrc: ./targets.mind; filterMinCF: 0.0002; filterBeta: 0.5;"
+      mindar-image="imageTargetSrc: ./targets.mind; filterMinCF: 0.0005; filterBeta: 0.1;"
       color-space="sRGB" 
-      renderer="preserveDrawingBuffer: true, colorManagement: true" 
+      renderer="preserveDrawingBuffer: true, colorManagement: true, antialias: true" 
       vr-mode-ui="enabled: false" 
       device-orientation-permission-ui="enabled: false">
 
@@ -102,9 +84,15 @@
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
 
       <a-entity id="ar-target" mindar-image-target="targetIndex: 0">
+        <!-- 
+           修正對位：
+           Position Y: 降至 0.13 (避免太高)
+           Width: 縮至 0.82 (配合原圖比例)
+           Height: 0.46
+        -->
         <a-video id="video-display" src="#cardVideo" 
-               position="0 0.28 0" 
-               width="0.95" height="0.54" 
+               position="0 0.13 0" 
+               width="0.82" height="0.46" 
                rotation="0 0 0">
         </a-video>
       </a-entity>
@@ -113,74 +101,48 @@
     <script>
       const video = document.querySelector('#cardVideo');
       const targetEl = document.querySelector('#ar-target');
-      const ui = document.querySelector('#ui');
       const loadingScreen = document.querySelector('#loading-screen');
-      const scanOverlay = document.querySelector('#scan-overlay');
-      const statusMsg = document.querySelector('#status-msg');
       const photoBtn = document.querySelector('#photo-btn');
-      const recordBtn = document.querySelector('#record-btn');
 
-      // 載入處理
       window.addEventListener('load', () => {
-        setTimeout(() => {
-          loadingScreen.style.opacity = '0';
-          ui.style.opacity = '1';
-          setTimeout(() => { loadingScreen.style.display = 'none'; }, 800);
-        }, 1500);
+        setTimeout(() => { loadingScreen.style.opacity = '0'; 
+        setTimeout(() => { loadingScreen.style.display = 'none'; }, 800); }, 1000);
       });
 
-      targetEl.addEventListener("targetFound", event => {
-        video.play();
-        scanOverlay.classList.add('hidden');
-        statusMsg.style.display = 'none';
+      targetEl.addEventListener("targetFound", () => { 
+        video.play(); 
+        document.querySelector('#status-msg').style.display = 'none';
+      });
+      targetEl.addEventListener("targetLost", () => { 
+        video.pause(); 
+        setTimeout(() => { if (video.paused) document.querySelector('#status-msg').style.display = 'block'; }, 3000);
       });
 
-      targetEl.addEventListener("targetLost", event => {
-        video.pause();
-        scanOverlay.classList.remove('hidden');
-        setTimeout(() => { if (video.paused) statusMsg.style.display = 'block'; }, 3000);
-      });
-
-      // --- 功能 2: 拍照實作 ---
+      // --- 修正版拍照功能 (合併鏡頭背景) ---
       photoBtn.addEventListener('click', () => {
-        const canvas = document.querySelector('canvas');
-        const dataURL = canvas.toDataURL('image/png');
+        const sceneEl = document.querySelector('a-scene');
+        const videoEl = document.querySelector('video'); // 呢個係相機鏡頭嘅 Video Tag
+        const canvas = sceneEl.components.screenshot.getCanvas('perspective');
+        
+        // 建立一個臨時的 Canvas 嚟合併兩者
+        const finalCanvas = document.createElement('canvas');
+        finalCanvas.width = canvas.width;
+        finalCanvas.height = canvas.height;
+        const ctx = finalCanvas.getContext('2d');
+
+        // 1. 先畫鏡頭畫面
+        ctx.drawImage(videoEl, 0, 0, finalCanvas.width, finalCanvas.height);
+        // 2. 再畫 AR 內容
+        ctx.drawImage(canvas, 0, 0, finalCanvas.width, finalCanvas.height);
+
         const link = document.createElement('a');
         link.download = 'KYRUMI-AR-Capture.png';
-        link.href = dataURL;
+        link.href = finalCanvas.toDataURL('image/png');
         link.click();
       });
 
-      // --- 功能 2: 錄影實作 (使用 MediaRecorder API) ---
-      let mediaRecorder;
-      let recordedChunks = [];
-
-      recordBtn.addEventListener('click', async () => {
-        if (!mediaRecorder || mediaRecorder.state === "inactive") {
-          const stream = document.querySelector('canvas').captureStream(30);
-          mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
-          
-          recordedChunks = [];
-          mediaRecorder.ondataavailable = (e) => recordedChunks.push(e.data);
-          mediaRecorder.onstop = () => {
-            const blob = new Blob(recordedChunks, { type: 'video/webm' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'KYRUMI-AR-Video.webm';
-            a.click();
-          };
-
-          mediaRecorder.start();
-          recordBtn.classList.add('recording');
-          recordBtn.innerHTML = "STOP<br>停止";
-        } else {
-          mediaRecorder.stop();
-          recordBtn.classList.remove('recording');
-          recordBtn.innerHTML = "REC<br>錄影";
-        }
-      });
-
+      // 錄影功能限制較多，通常 Web 端無法簡單合併背景錄影，
+      // 建議先用拍照功能測試背景合併是否成功。
       window.addEventListener('click', () => { if (video.muted) video.muted = false; });
     </script>
   </body>

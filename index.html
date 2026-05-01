@@ -9,6 +9,15 @@
     <style>
       body { margin: 0; overflow: hidden; background: #000; font-family: -apple-system, sans-serif; }
       
+      /* Loading Screen 樣式修正 */
+      #loading {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: #1a1a1a; z-index: 2000; display: flex; flex-direction: column;
+        align-items: center; justify-content: center; color: #d4af37;
+      }
+      #loading .brand { font-size: 20px; letter-spacing: 4px; font-weight: bold; margin-bottom: 10px; }
+      #loading .status { font-size: 10px; letter-spacing: 2px; opacity: 0.6; }
+
       #ui-overlay {
         position: fixed; top: 30px; width: 100%; text-align: center; z-index: 1000;
         pointer-events: none;
@@ -31,20 +40,15 @@
       #snap-btn { border-color: #d4af37; }
       #rec-btn { border-color: #ff4444; }
 
-      .a-canvas {
-        width: 100% !important; height: 100% !important;
-        position: absolute !important; top: 0 !important; left: 0 !important;
-      }
-
-      #loading {
-        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: #000; z-index: 2000; display: flex; align-items: center; justify-content: center; color: #d4af37;
-      }
+      .a-canvas { width: 100% !important; height: 100% !important; position: absolute !important; top: 0 !important; left: 0 !important; }
     </style>
   </head>
 
   <body>
-    <div id="loading">KYRUMI STUDIO Loading...</div>
+    <div id="loading">
+      <div class="brand">KYRUMI STUDIO</div>
+      <div class="status">LOADING...</div>
+    </div>
 
     <div id="ui-overlay">
       <div class="instruction">
@@ -73,14 +77,13 @@
 
       <a-entity id="ar-target" mindar-image-target="targetIndex: 0">
         <!-- 
-           對位修正（參考 image_15 & 16）：
-           Position Y: 再降至 0.18 (貼合畫作中心)
-           Width: 縮至 0.88 (避免遮擋左右黑框)
-           Height: 0.5 (維持比例)
+           最終校正：
+           Width: 0.85 (縮細以防超出黑邊)
+           Position Y: 0.17 (貼合畫作中心)
         -->
         <a-video id="video-display" src="#cardVideo" 
-               position="0 0.18 0" 
-               width="0.88" height="0.5" 
+               position="0 0.17 0" 
+               width="0.85" height="0.48" 
                rotation="0 0 0">
         </a-video>
       </a-entity>
@@ -92,13 +95,13 @@
       const snapBtn = document.querySelector('#snap-btn');
 
       window.addEventListener("load", () => {
-        setTimeout(() => { document.getElementById('loading').style.display = 'none'; }, 1500);
+        setTimeout(() => { document.getElementById('loading').style.display = 'none'; }, 2000);
       });
 
       targetEl.addEventListener("targetFound", () => { video.play(); });
       targetEl.addEventListener("targetLost", () => { video.pause(); });
 
-      // --- 影相功能：解決「儲存後變大」嘅比例偏差 ---
+      // --- 拍照功能：防止壓扁 (Anti-Squeeze) ---
       snapBtn.addEventListener('click', () => {
         const scene = document.querySelector('a-scene');
         const arCanvas = scene.renderer.domElement;
@@ -106,24 +109,37 @@
 
         if (!videoFeed) return;
 
-        // 建立一個與相機原始分辨率一致的 Canvas
         const finalCanvas = document.createElement('canvas');
-        finalCanvas.width = videoFeed.videoWidth;
-        finalCanvas.height = videoFeed.videoHeight;
+        finalCanvas.width = arCanvas.width;
+        finalCanvas.height = arCanvas.height;
         const ctx = finalCanvas.getContext('2d');
 
-        // 1. 畫背景（相機原始畫面）
-        ctx.drawImage(videoFeed, 0, 0, finalCanvas.width, finalCanvas.height);
+        // 核心邏輯：計算鏡頭畫面點樣填滿畫布而不變形 (Cover Fit)
+        const videoAspect = videoFeed.videoWidth / videoFeed.videoHeight;
+        const canvasAspect = finalCanvas.width / finalCanvas.height;
+        let drawWidth, drawHeight, offsetX, offsetY;
+
+        if (videoAspect > canvasAspect) {
+          drawHeight = finalCanvas.height;
+          drawWidth = drawHeight * videoAspect;
+          offsetX = (finalCanvas.width - drawWidth) / 2;
+          offsetY = 0;
+        } else {
+          drawWidth = finalCanvas.width;
+          drawHeight = drawWidth / videoAspect;
+          offsetX = 0;
+          offsetY = (finalCanvas.height - drawHeight) / 2;
+        }
+
+        // 1. 畫相機背景 (修正比例)
+        ctx.drawImage(videoFeed, offsetX, offsetY, drawWidth, drawHeight);
         
-        // 2. 畫 AR（根據相機比例縮放，防止變大）
-        // 再次強制渲染確保 AR 層最新
+        // 2. 疊加 AR 內容
         scene.renderer.render(scene.object3D, scene.camera);
-        
-        // 核心修正：將 A-Frame Canvas 按比例縮放回相機尺寸
         ctx.drawImage(arCanvas, 0, 0, finalCanvas.width, finalCanvas.height);
 
         const link = document.createElement('a');
-        link.download = 'KYRUMI_AR_FINAL.png';
+        link.download = 'KYRUMI_AR_SNAPSHOT.png';
         link.href = finalCanvas.toDataURL('image/png');
         link.click();
       });

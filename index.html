@@ -118,13 +118,12 @@
 
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
       
-      <!-- 修正後嘅 AR 影片位置 -->
       <a-entity id="ar-target" mindar-image-target="targetIndex: 0">
         <a-video 
           src="#cardVideo" 
-          position="0 0.35 0" 
+          position="0 0.48 0" 
           width="1" 
-          height="0.75"
+          height="0.5625"
           transparent="true"
           material="shader: flat">
         </a-video>
@@ -165,7 +164,6 @@
       targetEl.addEventListener("targetFound", () => videoAsset.play());
       targetEl.addEventListener("targetLost", () => videoAsset.pause());
 
-      // 錄影邏輯（保持不變）
       let mediaRecorder, chunks = [], isRecording = false;
       const captureCanvas = document.createElement('canvas');
       const ctx = captureCanvas.getContext('2d');

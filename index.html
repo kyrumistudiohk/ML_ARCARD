@@ -103,7 +103,7 @@
       mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiScanning: no; filterMinCF: 0.0001; filterBeta: 0.001; warmupTolerance: 10; missTolerance: 15;"
       device-orientation-permission-ui="enabled: false"
       embedded color-management="true" vr-mode-ui="enabled: false"
-      renderer="preserveDrawingBuffer: true; alpha: true; antialias: true; precision: highp;">
+      renderer="preserveDrawingBuffer: true; alpha: true; antialias: true; precision: mediump;">
       
       <a-assets>
         <video id="cardVideo" 
@@ -182,35 +182,41 @@
         const videoFeed = document.querySelector('video:not([id])');
         
         if (videoFeed && arCanvas) {
-          // 【修復錄影比例變形】
-          // 鎖定手機螢幕物理寬高比例 (解決擠壓與變形問題)
+          // 【強效修復：解決第一次錄影被壓扁擠壓的問題】
+          // 當發現相機原生解析度還在加載(為0或極小值)時，跳過此幀不進行繪製，避免錯誤的高寬比被記錄
+          const imgW = videoFeed.videoWidth;
+          const imgH = videoFeed.videoHeight;
+          if (imgW <= 0 || imgH <= 0 || arCanvas.width <= 0) return;
+
           const pixelRatio = window.devicePixelRatio || 1;
           const targetW = window.innerWidth * pixelRatio;
           const targetH = window.innerHeight * pixelRatio;
 
+          // 強制校正 canvas 物理尺寸，與手機視窗完美匹配
           if (captureCanvas.width !== targetW || captureCanvas.height !== targetH) {
             captureCanvas.width = targetW;
             captureCanvas.height = targetH;
           }
 
           ctx.clearRect(0, 0, targetW, targetH);
-
-          const imgW = videoFeed.videoWidth;
-          const imgH = videoFeed.videoHeight;
           
-          if (imgW > 0 && imgH > 0) {
-            const scale = Math.max(targetW / imgW, targetH / imgH);
-            const x = (targetW - imgW * scale) / 2;
-            const y = (targetH - imgH * scale) / 2;
-            ctx.drawImage(videoFeed, 0, 0, imgW, imgH, x, y, imgW * scale, imgH * scale);
-          }
-
+          // 計算等比例縮放 (Cover Fit) 避免背景變形
+          const scale = Math.max(targetW / imgW, targetH / imgH);
+          const x = (targetW - imgW * scale) / 2;
+          const y = (targetH - imgH * scale) / 2;
+          
+          ctx.drawImage(videoFeed, 0, 0, imgW, imgH, x, y, imgW * scale, imgH * scale);
           ctx.drawImage(arCanvas, 0, 0, targetW, targetH);
         }
       }
 
       recBtn.addEventListener('click', function() {
         if (!isRecording) {
+          // 在點擊當下，強制更新一次 Canvas 尺寸，杜絕第一次錄影的時差擠壓
+          const pixelRatio = window.devicePixelRatio || 1;
+          captureCanvas.width = window.innerWidth * pixelRatio;
+          captureCanvas.height = window.innerHeight * pixelRatio;
+
           isRecording = true;
           this.classList.add('recording');
           this.innerHTML = '<span class="rec-text">STOP</span><span class="sub-text">停止</span>';

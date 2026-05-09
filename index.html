@@ -6,9 +6,10 @@
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     
     <style>
-      html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000 !important; }
+      /* 基本重置 */
+      html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000; }
       
-      /* 相機層穩定設定 */
+      /* 強制相機層置底且可見 */
       video:not([id]) {
         width: 100vw !important;
         height: 100vh !important;
@@ -16,64 +17,65 @@
         position: fixed !important;
         top: 0 !important;
         left: 0 !important;
-        z-index: -5 !important; 
+        z-index: -10 !important; 
       }
 
-      .a-canvas { background: transparent !important; z-index: -1 !important; }
+      .a-canvas { background: transparent !important; }
 
-      /* REC 按鈕樣式 (中英) */
+      /* REC 按鈕 */
       #rec-btn { 
         position: fixed; bottom: 50px; right: 30px; 
         width: 70px; height: 70px; border-radius: 50%; border: 1px solid #d4af37;
         background: rgba(13, 13, 13, 0.8); color: #d4af37;
         display: none; flex-direction: column; align-items: center; justify-content: center; 
-        z-index: 1000; font-family: "serif", "Noto Serif TC", serif; 
-        cursor: pointer; transition: all 0.3s;
+        z-index: 1000; font-family: serif; 
+        cursor: pointer; transition: 0.3s;
       }
-      #rec-btn .rec-text { font-size: 12px; font-weight: bold; letter-spacing: 1px; }
-      #rec-btn .sub-text { font-size: 9px; margin-top: 2px; opacity: 0.8; }
       #rec-btn.recording { border-color: #ff4444; color: #ff4444; }
+      #rec-btn span { pointer-events: none; }
 
-      /* 預覽視窗優化 */
+      /* 錄影預覽層：解決太大與按鈕重疊問題 */
       #preview-layer {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0,0,0,0.95); z-index: 2000; display: none;
-        flex-direction: column; align-items: center; justify-content: center;
+        background: rgba(0,0,0,0.95); z-index: 99999; display: none;
+        flex-direction: column; align-items: center; justify-content: flex-start;
+        padding-top: 60px;
       }
       #preview-video { 
-        max-width: 80%; max-height: 60vh; 
+        width: 70%; max-height: 50vh; /* 縮小影片高度 */
         background: #000; border: 1px solid #d4af37; border-radius: 4px; 
+        object-fit: contain;
       }
       .popup-btns { 
-        display: flex; flex-direction: column; width: 80%; gap: 10px; margin-top: 20px; 
+        display: flex; flex-direction: column; width: 70%; gap: 15px; margin-top: 30px; 
       }
       .btn { 
-        padding: 15px; font-family: "serif", serif; cursor: pointer; font-size: 14px;
+        padding: 16px; font-family: serif; cursor: pointer; font-size: 14px;
         letter-spacing: 2px; text-align: center; border: 1px solid #d4af37; border-radius: 4px;
+        text-decoration: none;
       }
-      .save { background: #d4af37; color: #000; font-weight: bold; text-decoration: none; }
+      .save { background: #d4af37; color: #000; font-weight: bold; }
       .close { background: transparent; color: #d4af37; }
 
-      /* 主選單啟動畫面 */
+      /* 啟動選單 */
       #loading-screen {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: #0d0d0d; z-index: 9999; display: flex; align-items: center; justify-content: center;
+        background: #0d0d0d; z-index: 999999; display: flex; align-items: center; justify-content: center;
       }
       .menu-card {
-        padding: 60px 30px; border: 1px solid #d4af37; position: relative; text-align: center; width: 75%;
+        padding: 50px 30px; border: 1px solid #d4af37; position: relative; text-align: center; width: 70%;
       }
       .menu-card::before { content: ""; position: absolute; top: -5px; left: -5px; width: 15px; height: 15px; border-top: 2px solid #d4af37; border-left: 2px solid #d4af37; }
       .menu-card::after { content: ""; position: absolute; bottom: -5px; right: -5px; width: 15px; height: 15px; border-bottom: 2px solid #d4af37; border-right: 2px solid #d4af37; }
       
-      .title { color: #d4af37; font-family: "serif", serif; letter-spacing: 4px; font-size: 24px; margin-bottom: 15px; }
-      .desc { color: #d4af37; font-size: 12px; line-height: 1.8; opacity: 0.8; font-family: "serif", serif; margin-bottom: 40px; }
+      .title { color: #d4af37; font-family: serif; letter-spacing: 4px; font-size: 22px; margin-bottom: 15px; }
+      .desc { color: #d4af37; font-size: 11px; line-height: 1.6; opacity: 0.8; margin-bottom: 35px; }
 
       #start-btn {
-        background: transparent; border: 1px solid #d4af37; color: #d4af37;
-        padding: 12px 40px; font-size: 14px; letter-spacing: 2px; cursor: pointer;
-        font-family: "serif", serif; transition: 0.3s;
+        background: #d4af37; border: none; color: #000;
+        padding: 14px 40px; font-size: 14px; letter-spacing: 2px; cursor: pointer;
+        font-family: serif; font-weight: bold;
       }
-      #start-btn:active { background: #d4af37; color: #000; }
     </style>
   </head>
 
@@ -82,10 +84,10 @@
       <div class="menu-card">
         <div class="title">KYRUMI STUDIO</div>
         <div class="desc">
-          此體驗需要獲取您的相機與動態感測器權限<br>
-          Camera and Motion Sensor access are required.
+          點擊下方按鈕以啟動相機 AR 體驗<br>
+          Click below to start the Camera AR experience.
         </div>
-        <button id="start-btn">點擊開始 / START</button>
+        <button id="start-btn">開始體驗 / START</button>
       </div>
     </div>
 
@@ -98,14 +100,15 @@
     </div>
 
     <div id="rec-btn">
-      <span class="rec-text">REC</span>
-      <span class="sub-text">錄影</span>
+      <span style="font-size: 12px; font-weight: bold;">REC</span>
+      <span style="font-size: 9px; opacity: 0.8;">錄影</span>
     </div>
 
     <a-scene 
       mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiScanning: no;"
+      device-orientation-permission-ui="enabled: false"
       embedded color-management="true" vr-mode-ui="enabled: false"
-      renderer="preserveDrawingBuffer: true; alpha: true; antialias: true;">
+      renderer="preserveDrawingBuffer: true; alpha: true;">
       
       <a-assets>
         <video id="cardVideo" src="./AR_SMK.mp4" loop="true" crossorigin="anonymous" webkit-playsinline playsinline muted></video>
@@ -124,41 +127,28 @@
       const recBtn = document.getElementById('rec-btn');
       const startBtn = document.getElementById('start-btn');
 
-      // 合併權限與啟動邏輯
-      startBtn.addEventListener('click', async () => {
-        startBtn.innerText = "LOADING...";
-        startBtn.disabled = true;
-
-        // 1. 同步請求 iOS 感測器權限 (必須在 Click 事件第一時間執行)
-        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-          try {
-            await DeviceOrientationEvent.requestPermission();
-          } catch (e) { console.error(e); }
-        }
-
-        // 2. 啟動 AR (觸發相機請求)
+      // 點擊後僅會觸發「相機」授權，因為動態感測器已被禁用
+      startBtn.addEventListener('click', () => {
+        startBtn.innerText = "STARTING...";
+        // 啟動 AR
         sceneEl.systems['mindar-image-system'].start();
         videoAsset.load();
       });
 
+      // 當 AR 準備好時
       window.addEventListener("arReady", () => {
-        const loader = document.getElementById('loading-screen');
-        loader.style.opacity = "0";
-        setTimeout(() => { 
-          loader.style.display = 'none'; 
-          recBtn.style.display = 'flex'; 
-        }, 500);
+        document.getElementById('loading-screen').style.display = 'none';
+        recBtn.style.display = 'flex';
+        // 額外確保 canvas 透明，防止黑屏
+        document.querySelector('.a-canvas').style.background = 'transparent';
       });
 
-      // 防止畫面黑屏的背景強制邏輯
+      // 每秒強制檢查背景相機視訊，防止黑屏
       setInterval(() => {
         const v = document.querySelector('video:not([id])');
-        if (v && v.style.zIndex !== '-5') {
-          v.style.setProperty('width', '100vw', 'important');
-          v.style.setProperty('height', '100vh', 'important');
-          v.style.setProperty('object-fit', 'cover', 'important');
-          v.style.setProperty('z-index', '-5', 'important');
-          v.style.setProperty('position', 'fixed', 'important');
+        if (v) {
+          v.style.setProperty('z-index', '-10', 'important');
+          v.style.setProperty('background', 'transparent', 'important');
         }
       }, 1000);
 
@@ -166,7 +156,7 @@
       targetEl.addEventListener("targetFound", () => videoAsset.play());
       targetEl.addEventListener("targetLost", () => videoAsset.pause());
 
-      // 錄影邏輯與畫布混合
+      // 錄影功能
       let mediaRecorder, chunks = [], isRecording = false;
       const captureCanvas = document.createElement('canvas');
       const ctx = captureCanvas.getContext('2d');
@@ -197,7 +187,7 @@
         if (!isRecording) {
           isRecording = true;
           this.classList.add('recording');
-          this.innerHTML = '<span class="rec-text">STOP</span><span class="sub-text">停止</span>';
+          this.innerHTML = '<span style="font-size:12px;font-weight:bold;">STOP</span><span style="font-size:9px;opacity:0.8;">停止</span>';
           chunks = [];
           recordLoop();
           const stream = captureCanvas.captureStream(30);
@@ -215,7 +205,7 @@
         } else {
           isRecording = false;
           this.classList.remove('recording');
-          this.innerHTML = '<span class="rec-text">REC</span><span class="sub-text">錄影</span>';
+          this.innerHTML = '<span style="font-size:12px;font-weight:bold;">REC</span><span style="font-size:9px;opacity:0.8;">錄影</span>';
           mediaRecorder.stop();
         }
       });

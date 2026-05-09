@@ -6,10 +6,14 @@
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     
     <style>
-      /* 確保基礎層完全透明 */
-      html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #000 !important; }
+      /* 【核心：解決黑屏】必須確保背景完全透明，相機畫面才看得到 */
+      html, body { 
+        margin: 0; padding: 0; width: 100%; height: 100%; 
+        overflow: hidden; 
+        background-color: transparent !important; 
+      }
       
-      /* 相機視訊層強制置底 */
+      /* 相機層穩定置底 */
       video:not([id]) {
         width: 100vw !important;
         height: 100vh !important;
@@ -17,14 +21,14 @@
         position: fixed !important;
         top: 0 !important;
         left: 0 !important;
-        z-index: -10 !important; 
+        z-index: -20 !important; 
       }
 
-      /* A-Frame 畫布透明化 */
       .a-canvas { background: transparent !important; z-index: 1 !important; }
-      a-scene { background: transparent !important; }
 
-      /* REC 按鈕樣式 */
+      /* --- 以下鎖定完美 UI 樣式 --- */
+
+      /* REC 按鈕 */
       #rec-btn { 
         position: fixed; bottom: 40px; right: 30px; 
         width: 65px; height: 65px; border-radius: 50%; border: 1px solid #d4af37;
@@ -36,7 +40,7 @@
       #rec-btn .sub-text { font-size: 8px; opacity: 0.8; }
       #rec-btn.recording { border-color: #ff4444; color: #ff4444; }
 
-      /* 預覽層修正：縮小影片並垂直排列按鈕 */
+      /* 預覽與下載層 */
       #preview-layer {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         background: rgba(0,0,0,0.95); z-index: 9999; display: none;
@@ -44,13 +48,11 @@
         padding: 20px; box-sizing: border-box;
       }
       #preview-video { 
-        max-width: 90%; max-height: 55vh; /* 縮減影片高度 */
+        max-width: 90%; max-height: 55vh; 
         border: 1px solid #d4af37; border-radius: 4px; background: #000;
         margin-bottom: 25px;
       }
-      .popup-btns { 
-        display: flex; flex-direction: column; width: 85%; gap: 12px; 
-      }
+      .popup-btns { display: flex; flex-direction: column; width: 85%; gap: 12px; }
       .btn { 
         padding: 15px; font-family: serif; cursor: pointer; font-size: 14px;
         letter-spacing: 2px; text-align: center; border-radius: 4px;
@@ -59,7 +61,7 @@
       .save { background: #d4af37; color: #000; font-weight: bold; }
       .close { background: transparent; color: #d4af37; }
 
-      /* 啟動介面 */
+      /* 啟動選單 */
       #loading-screen {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         background: #0d0d0d; z-index: 10000; display: flex; align-items: center; justify-content: center;
@@ -71,7 +73,6 @@
       .menu-card::after { content: ""; position: absolute; bottom: -5px; right: -5px; width: 15px; height: 15px; border-bottom: 2px solid #d4af37; border-right: 2px solid #d4af37; }
       .title { color: #d4af37; font-family: serif; letter-spacing: 5px; font-size: 24px; margin-bottom: 10px; }
       .desc { color: #d4af37; font-size: 11px; line-height: 1.8; opacity: 0.8; margin-bottom: 30px; }
-
       #start-btn {
         background: #d4af37; border: none; color: #000;
         padding: 14px 40px; font-size: 14px; letter-spacing: 2px; cursor: pointer;
@@ -109,7 +110,7 @@
       mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiScanning: no;"
       device-orientation-permission-ui="enabled: false"
       embedded color-management="true" vr-mode-ui="enabled: false"
-      renderer="preserveDrawingBuffer: true; alpha: true;">
+      renderer="preserveDrawingBuffer: true; alpha: true; antialias: true;">
       
       <a-assets>
         <video id="cardVideo" src="./AR_SMK.mp4" loop="true" crossorigin="anonymous" webkit-playsinline playsinline muted></video>
@@ -128,41 +129,38 @@
       const recBtn = document.getElementById('rec-btn');
       const startBtn = document.getElementById('start-btn');
 
-      // 點擊按鈕：一次性請求所有權限
+      // 權限與啟動邏輯
       startBtn.addEventListener('click', async () => {
         startBtn.innerText = "STARTING...";
         startBtn.disabled = true;
 
-        // 1. 手動請求 iOS 動態感測器 (即使 UI 禁用，功能仍必須觸發)
+        // 保留感測器請求功能
         if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
           try {
             await DeviceOrientationEvent.requestPermission();
           } catch (e) { console.error("Sensor permission error:", e); }
         }
 
-        // 2. 啟動 AR 系統 (這會觸發相機彈窗)
+        // 啟動 AR (會觸發相機請求)
         sceneEl.systems['mindar-image-system'].start();
         videoAsset.load();
       });
 
-      // 處理相機黑屏與 UI 切換
+      // 當相機與 AR 準備就緒
       window.addEventListener("arReady", () => {
         document.getElementById('loading-screen').style.display = 'none';
         recBtn.style.display = 'flex';
-        // 強制確保相機層顯示
-        const videoFeed = document.querySelector('video:not([id])');
-        if (videoFeed) {
-          videoFeed.style.setProperty('z-index', '-10', 'important');
-        }
+        // 確保 Body 是透明的，讓底層 Video 露出來
+        document.body.style.backgroundColor = "transparent";
       });
 
-      // 定時同步視訊大小，防止旋轉時黑屏
+      // 監控相機視訊層，防止切換時黑屏
       setInterval(() => {
         const v = document.querySelector('video:not([id])');
         if (v) {
-          v.style.setProperty('width', '100vw', 'important');
-          v.style.setProperty('height', '100vh', 'important');
-          v.style.setProperty('object-fit', 'cover', 'important');
+          v.style.setProperty('z-index', '-20', 'important');
+          v.style.setProperty('position', 'fixed', 'important');
+          v.style.setProperty('background', 'transparent', 'important');
         }
       }, 1000);
 

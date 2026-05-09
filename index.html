@@ -119,7 +119,7 @@
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
       
       <a-entity id="ar-target" mindar-image-target="targetIndex: 0">
-        <a-video src="#cardVideo" position="0 0.22 0" width="0.85" height="0.478" transparent="false"></a-video>
+        <a-video src="#cardVideo" position="0 1.85 0" width="1" height="1" transparent="false"></a-video>
       </a-entity>
     </a-scene>
 
@@ -168,19 +168,35 @@
       targetEl.addEventListener("targetFound", () => videoAsset.play());
       targetEl.addEventListener("targetLost", () => videoAsset.pause());
 
-      // 錄影邏輯
+      // 錄影邏輯 (加入流暢度優化)
       let mediaRecorder, chunks = [], isRecording = false;
       const captureCanvas = document.createElement('canvas');
       const ctx = captureCanvas.getContext('2d');
+      
+      // 效能優化 1：關閉抗鋸齒以釋放 GPU / CPU 繪圖運算壓力
+      ctx.imageSmoothingEnabled = false;
 
-      function recordLoop() {
+      let lastFrameTime = 0;
+      const fpsInterval = 1000 / 30; // 限制最多 30 FPS，防止瀏覽器背景重繪過載
+
+      function recordLoop(timestamp) {
         if (!isRecording) return;
+        
+        requestAnimationFrame(recordLoop);
+
+        // 效能優化 2：控制時間間隔，防止卡頓
+        const elapsed = timestamp - lastFrameTime;
+        if (elapsed < fpsInterval) return;
+        lastFrameTime = timestamp - (elapsed % fpsInterval);
+
         const arCanvas = sceneEl.canvas;
         const videoFeed = document.querySelector('video:not([id])');
         
         if (videoFeed && arCanvas) {
-          captureCanvas.width = arCanvas.width;
-          captureCanvas.height = arCanvas.height;
+          if (captureCanvas.width !== arCanvas.width || captureCanvas.height !== arCanvas.height) {
+            captureCanvas.width = arCanvas.width;
+            captureCanvas.height = arCanvas.height;
+          }
           const vw = videoFeed.videoWidth, vh = videoFeed.videoHeight;
           const cw = captureCanvas.width, ch = captureCanvas.height;
           const vRatio = vw / vh, cRatio = cw / ch;
@@ -192,7 +208,6 @@
           ctx.drawImage(videoFeed, sx, sy, sw, sh, 0, 0, cw, ch);
           ctx.drawImage(arCanvas, 0, 0, cw, ch);
         }
-        requestAnimationFrame(recordLoop);
       }
 
       recBtn.addEventListener('click', function() {
@@ -201,9 +216,15 @@
           this.classList.add('recording');
           this.innerHTML = '<span class="rec-text">STOP</span><span class="sub-text">停止</span>';
           chunks = [];
-          recordLoop();
+          
+          lastFrameTime = performance.now();
+          requestAnimationFrame(recordLoop);
+
           const stream = captureCanvas.captureStream(30);
-          mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp8' });
+          mediaRecorder = new MediaRecorder(stream, { 
+            mimeType: 'video/webm;codecs=vp8',
+            videoBitsPerSecond: 2500000 // 限制碼率在 2.5 Mbps 提升寫入速度
+          });
           mediaRecorder.ondataavailable = e => chunks.push(e.data);
           mediaRecorder.onstop = () => {
             const blob = new Blob(chunks, { type: 'video/mp4' });

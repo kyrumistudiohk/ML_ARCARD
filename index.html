@@ -120,12 +120,14 @@
       
       <a-entity id="ar-target" mindar-image-target="targetIndex: 0">
         <a-video 
+          id="ar-video-el"
           src="#cardVideo" 
           position="0 0.48 0" 
           width="0.86" 
           height="0.483"
           transparent="true"
-          material="shader: flat">
+          material="shader: flat; opacity: 0"
+          animation__fadein="property: material.opacity; from: 0; to: 1; dur: 1200; startEvents: start-fade">
         </a-video>
       </a-entity>
     </a-scene>
@@ -133,6 +135,7 @@
     <script>
       const sceneEl = document.querySelector('a-scene');
       const videoAsset = document.querySelector('#cardVideo');
+      const arVideoEl = document.querySelector('#ar-video-el');
       const recBtn = document.getElementById('rec-btn');
       const startBtn = document.getElementById('start-btn');
 
@@ -154,8 +157,7 @@
         document.getElementById('loading-screen').style.display = 'none';
         recBtn.style.display = 'flex';
         
-        // 【修復核心一：解決不同瀏覽器比例失調、位置偏位問題】
-        // 當 AR 準備就緒，強制讓 A-Frame 重新計算相機視角的 Aspect Ratio，抹平 Safari 與 Chrome/微信的視窗渲染差異
+        // 抹平不同視窗高寬度的渲染差異
         setTimeout(() => {
           if (sceneEl.camera) {
             sceneEl.camera.aspect = window.innerWidth / window.innerHeight;
@@ -164,7 +166,6 @@
         }, 500);
       });
 
-      // 監聽螢幕旋轉或大小改變（如微信頂部欄彈出），動態修復投影
       window.addEventListener('resize', () => {
         if (sceneEl.camera) {
           sceneEl.camera.aspect = window.innerWidth / window.innerHeight;
@@ -178,8 +179,20 @@
       }, 1000);
 
       const targetEl = document.querySelector('#ar-target');
-      targetEl.addEventListener("targetFound", () => videoAsset.play());
-      targetEl.addEventListener("targetLost", () => videoAsset.pause());
+      
+      // 當偵測到卡片時
+      targetEl.addEventListener("targetFound", () => {
+        videoAsset.play();
+        // 觸發自定義事件，使 AR 影片播放淡入動畫
+        arVideoEl.emit('start-fade');
+      });
+      
+      // 當卡片離開視野時
+      targetEl.addEventListener("targetLost", () => {
+        videoAsset.pause();
+        // 瞬間重置透明度為 0，確保下一次出現時重新播放淡入效果
+        arVideoEl.setAttribute('material', 'opacity', 0);
+      });
 
       let mediaRecorder, chunks = [], isRecording = false;
       const captureCanvas = document.createElement('canvas');

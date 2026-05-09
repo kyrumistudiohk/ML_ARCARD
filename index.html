@@ -153,6 +153,23 @@
       window.addEventListener("arReady", () => {
         document.getElementById('loading-screen').style.display = 'none';
         recBtn.style.display = 'flex';
+        
+        // 【修復核心一：解決不同瀏覽器比例失調、位置偏位問題】
+        // 當 AR 準備就緒，強制讓 A-Frame 重新計算相機視角的 Aspect Ratio，抹平 Safari 與 Chrome/微信的視窗渲染差異
+        setTimeout(() => {
+          if (sceneEl.camera) {
+            sceneEl.camera.aspect = window.innerWidth / window.innerHeight;
+            sceneEl.camera.updateProjectionMatrix();
+          }
+        }, 500);
+      });
+
+      // 監聽螢幕旋轉或大小改變（如微信頂部欄彈出），動態修復投影
+      window.addEventListener('resize', () => {
+        if (sceneEl.camera) {
+          sceneEl.camera.aspect = window.innerWidth / window.innerHeight;
+          sceneEl.camera.updateProjectionMatrix();
+        }
       });
 
       setInterval(() => {
@@ -182,8 +199,6 @@
         const videoFeed = document.querySelector('video:not([id])');
         
         if (videoFeed && arCanvas) {
-          // 【強效修復：解決第一次錄影被壓扁擠壓的問題】
-          // 當發現相機原生解析度還在加載(為0或極小值)時，跳過此幀不進行繪製，避免錯誤的高寬比被記錄
           const imgW = videoFeed.videoWidth;
           const imgH = videoFeed.videoHeight;
           if (imgW <= 0 || imgH <= 0 || arCanvas.width <= 0) return;
@@ -192,7 +207,6 @@
           const targetW = window.innerWidth * pixelRatio;
           const targetH = window.innerHeight * pixelRatio;
 
-          // 強制校正 canvas 物理尺寸，與手機視窗完美匹配
           if (captureCanvas.width !== targetW || captureCanvas.height !== targetH) {
             captureCanvas.width = targetW;
             captureCanvas.height = targetH;
@@ -200,7 +214,6 @@
 
           ctx.clearRect(0, 0, targetW, targetH);
           
-          // 計算等比例縮放 (Cover Fit) 避免背景變形
           const scale = Math.max(targetW / imgW, targetH / imgH);
           const x = (targetW - imgW * scale) / 2;
           const y = (targetH - imgH * scale) / 2;
@@ -212,7 +225,6 @@
 
       recBtn.addEventListener('click', function() {
         if (!isRecording) {
-          // 在點擊當下，強制更新一次 Canvas 尺寸，杜絕第一次錄影的時差擠壓
           const pixelRatio = window.devicePixelRatio || 1;
           captureCanvas.width = window.innerWidth * pixelRatio;
           captureCanvas.height = window.innerHeight * pixelRatio;

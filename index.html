@@ -3,7 +3,7 @@
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mind-ar-image-aframe.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     
     <style>
       html, body { 
@@ -136,25 +136,48 @@
       const recBtn = document.getElementById('rec-btn');
       const startBtn = document.getElementById('start-btn');
 
+      // 加強版相機請求
       startBtn.addEventListener('click', async () => {
         startBtn.innerText = "STARTING...";
         startBtn.disabled = true;
 
+        try {
+          // 明確請求相機權限
+          if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+            console.log("相機權限已手動授予");
+          }
+        } catch (e) {
+          console.error("手動相機請求失敗:", e);
+        }
+
+        // 請求 DeviceOrientation 權限（iOS 需要）
         if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
           try {
             await DeviceOrientationEvent.requestPermission();
-          } catch (e) { console.error("Sensor permission error:", e); }
+          } catch (e) { 
+            console.error("Sensor permission error:", e); 
+          }
         }
 
-        sceneEl.systems['mindar-image-system'].start();
+        // 啟動 MindAR
+        try {
+          await sceneEl.systems['mindar-image-system'].start();
+          console.log("MindAR 成功啟動");
+        } catch (err) {
+          console.error("MindAR 啟動失敗:", err);
+        }
+
         videoAsset.load();
       });
 
       window.addEventListener("arReady", () => {
+        console.log("AR Ready");
         document.getElementById('loading-screen').style.display = 'none';
         recBtn.style.display = 'flex';
       });
 
+      // 其他代碼保持不變...
       setInterval(() => {
         const v = document.querySelector('video:not([id])');
         if (v) v.style.setProperty('z-index', '-20', 'important');
@@ -164,7 +187,7 @@
       targetEl.addEventListener("targetFound", () => videoAsset.play());
       targetEl.addEventListener("targetLost", () => videoAsset.pause());
 
-      // 錄影邏輯 - 修復 squeezed 問題
+      // 錄影部分（略過，與之前相同）
       let mediaRecorder, chunks = [], isRecording = false;
       const captureCanvas = document.createElement('canvas');
       const ctx = captureCanvas.getContext('2d', { alpha: true });
@@ -174,7 +197,6 @@
       function recordLoop(timestamp) {
         if (!isRecording) return;
         requestAnimationFrame(recordLoop);
-
         const elapsed = timestamp - lastFrameTime;
         if (elapsed < fpsInterval) return;
         lastFrameTime = timestamp - (elapsed % fpsInterval);
@@ -185,24 +207,20 @@
         if (videoFeed && arCanvas) {
           const targetW = arCanvas.width;
           const targetH = arCanvas.height;
-
           if (captureCanvas.width !== targetW || captureCanvas.height !== targetH) {
             captureCanvas.width = targetW;
             captureCanvas.height = targetH;
           }
-
           ctx.clearRect(0, 0, targetW, targetH);
 
           const imgW = videoFeed.videoWidth;
           const imgH = videoFeed.videoHeight;
-          
           if (imgW > 0 && imgH > 0) {
             const scale = Math.max(targetW / imgW, targetH / imgH);
             const x = (targetW - imgW * scale) / 2;
             const y = (targetH - imgH * scale) / 2;
             ctx.drawImage(videoFeed, 0, 0, imgW, imgH, x, y, imgW * scale, imgH * scale);
           }
-
           ctx.drawImage(arCanvas, 0, 0, targetW, targetH);
         }
       }
@@ -223,7 +241,7 @@
           
           mediaRecorder = new MediaRecorder(stream, { 
             mimeType: options.mimeType,
-            videoBitsPerSecond: 4000000
+            videoBitsPerSecond: 4000000 
           });
           
           mediaRecorder.ondataavailable = e => { if (e.data && e.data.size > 0) chunks.push(e.data); };

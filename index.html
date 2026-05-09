@@ -9,7 +9,7 @@
       /* 核心：確保所有層級透明 */
       html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: transparent !important; }
       
-      /* 相機層：保持原始設定防止黑屏 */
+      /* 相機層：修正黑屏問題 */
       video {
         width: 100vw !important;
         height: 100vh !important;
@@ -23,20 +23,20 @@
       .a-canvas { background: transparent !important; z-index: -1 !important; }
       a-scene { background: transparent !important; }
 
-      /* 日系藝術風格 REC 按鈕 */
+      /* 日系美學 REC 按鈕 (僅中英) */
       #rec-btn { 
         position: fixed; bottom: 40px; right: 30px; 
         width: 65px; height: 65px; border-radius: 50%; border: 1px solid #d4af37;
         background: rgba(13, 13, 13, 0.7); color: #d4af37;
         display: none; flex-direction: column; align-items: center; justify-content: center; 
-        z-index: 1000; font-family: "serif", "Noto Serif JP", "MS Mincho", sans-serif; 
+        z-index: 1000; font-family: "serif", "MS Mincho", sans-serif; 
         cursor: pointer; transition: all 0.3s;
       }
-      #rec-btn .rec-text { font-size: 10px; letter-spacing: 1px; font-weight: bold; }
-      #rec-btn .jp-text { font-size: 8px; margin-top: 2px; opacity: 0.8; }
+      #rec-btn .rec-text { font-size: 11px; letter-spacing: 1px; font-weight: bold; }
+      #rec-btn .sub-text { font-size: 9px; margin-top: 2px; opacity: 0.8; }
       #rec-btn.recording { border-color: #ff4444; color: #ff4444; background: rgba(0,0,0,0.9); }
 
-      /* 預覽窗 */
+      /* 預覽與下載 */
       #preview-layer {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         background: rgba(0,0,0,0.95); z-index: 2000; display: none;
@@ -48,7 +48,6 @@
         object-fit: cover; 
       }
 
-      /* 日系風格彈窗按鈕 */
       .popup-btns { display: flex; gap: 0; margin-top: 25px; border: 1px solid #d4af37; border-radius: 4px; overflow: hidden; }
       .btn { 
         padding: 12px 30px; font-weight: normal; 
@@ -58,42 +57,42 @@
       .save { background: #d4af37; color: #000; border: none; }
       .close { background: transparent; color: #d4af37; border: none; border-right: 1px solid #d4af37; }
 
-      /* 日系藝術進入畫面 */
+      /* 主選單：說明相機與感測器請求 */
       #loading-screen {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         background: #0d0d0d; z-index: 9999; display: flex; align-items: center; justify-content: center;
       }
-      .jp-loading-card {
+      .menu-card {
         padding: 50px 30px; border: 1px solid #d4af37; position: relative; text-align: center;
+        max-width: 80%;
       }
-      /* 和風四角飾線 */
-      .jp-loading-card::before { content: ""; position: absolute; top: -5px; left: -5px; width: 15px; height: 15px; border-top: 2px solid #d4af37; border-left: 2px solid #d4af37; }
-      .jp-loading-card::after { content: ""; position: absolute; bottom: -5px; right: -5px; width: 15px; height: 15px; border-bottom: 2px solid #d4af37; border-right: 2px solid #d4af37; }
+      .menu-card::before { content: ""; position: absolute; top: -5px; left: -5px; width: 15px; height: 15px; border-top: 2px solid #d4af37; border-left: 2px solid #d4af37; }
+      .menu-card::after { content: ""; position: absolute; bottom: -5px; right: -5px; width: 15px; height: 15px; border-bottom: 2px solid #d4af37; border-right: 2px solid #d4af37; }
       
-      .loading-title { color: #d4af37; font-family: "serif", sans-serif; letter-spacing: 5px; font-size: 22px; margin-bottom: 5px; }
-      .loading-sub { color: #d4af37; font-size: 10px; letter-spacing: 2px; opacity: 0.7; font-family: "serif", sans-serif; margin-bottom: 30px; }
+      .title { color: #d4af37; font-family: "serif", sans-serif; letter-spacing: 5px; font-size: 22px; margin-bottom: 10px; }
+      .desc { color: #d4af37; font-size: 11px; line-height: 1.8; letter-spacing: 1px; opacity: 0.8; font-family: "serif", sans-serif; margin-bottom: 30px; }
 
-      /* 啟動按鈕 */
       #start-btn {
-        background: transparent; border: 1px solid #d4af37; color: #d4af37;
-        padding: 10px 30px; font-size: 12px; letter-spacing: 3px; cursor: pointer;
-        font-family: "serif", sans-serif; transition: 0.3s;
+        background: #d4af37; border: none; color: #000;
+        padding: 12px 40px; font-size: 13px; letter-spacing: 3px; cursor: pointer;
+        font-family: "serif", sans-serif; transition: 0.3s; font-weight: bold;
       }
-      #start-btn:active { background: #d4af37; color: #000; }
+      #start-btn:active { opacity: 0.7; }
     </style>
   </head>
 
   <body>
-    <!-- 日系啟動/Loading 畫面 -->
     <div id="loading-screen">
-      <div class="jp-loading-card">
-        <div class="loading-title">KYRUMI STUDIO</div>
-        <div class="loading-sub">空間の記憶 | MEMORY OF SPACE</div>
-        <button id="start-btn">進入探索 / ENTER</button>
+      <div class="menu-card">
+        <div class="title">KYRUMI STUDIO</div>
+        <div class="desc">
+          此體驗需要調用相機及動態感測器<br>
+          This experience requires Camera and Motion Sensors access.
+        </div>
+        <button id="start-btn">點擊開始 / START</button>
       </div>
     </div>
 
-    <!-- 預覽視窗 -->
     <div id="preview-layer">
         <video id="preview-video" controls playsinline></video>
         <div class="popup-btns">
@@ -102,13 +101,11 @@
         </div>
     </div>
 
-    <!-- 錄影按鈕 -->
     <div id="rec-btn">
       <span class="rec-text">REC</span>
-      <span class="jp-text">録画</span>
+      <span class="sub-text">錄影</span>
     </div>
 
-    <!-- autoStart 改為 false，由 JS 觸發 -->
     <a-scene 
       mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiScanning: no;"
       embedded color-management="true" vr-mode-ui="enabled: false"
@@ -119,8 +116,9 @@
       </a-assets>
 
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+      
       <a-entity id="ar-target" mindar-image-target="targetIndex: 0">
-        <a-video src="#cardVideo" position="0 0.44 0" width="1" height="0.56"></a-video>
+        <a-video src="#cardVideo" position="0 0 0" width="1" height="0.56"></a-video>
       </a-entity>
     </a-scene>
 
@@ -130,35 +128,46 @@
       const recBtn = document.getElementById('rec-btn');
       const startBtn = document.getElementById('start-btn');
 
-      // 核心修正：用戶點擊後才啟動 AR 與權限
-      startBtn.addEventListener('click', () => {
-        // 變更按鈕文字提示用戶正在載入
-        startBtn.innerText = "起動中...";
+      // 核心修正：一鍵處理所有權限與啟動
+      startBtn.addEventListener('click', async () => {
+        startBtn.innerText = "LOADING...";
         startBtn.disabled = true;
 
-        // 啟動 MindAR
+        // 1. 請求 iOS 動態感應器權限
+        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+          try {
+            await DeviceOrientationEvent.requestPermission();
+          } catch (e) {
+            console.error("Sensor denied", e);
+          }
+        }
+
+        // 2. 準備影片播放
+        videoAsset.load();
+
+        // 3. 啟動 AR 系統 (這會觸發瀏覽器相機權限)
         sceneEl.systems['mindar-image-system'].start();
       });
 
-      // 當 AR 準備好時隱藏啟動畫面
+      // AR 準備就緒
       window.addEventListener("arReady", () => {
         const loader = document.getElementById('loading-screen');
         loader.style.transition = "opacity 0.8s ease";
         loader.style.opacity = "0";
         setTimeout(() => { 
           loader.style.display = 'none'; 
-          recBtn.style.display = 'flex'; // 啟動成功後才顯示 REC
+          recBtn.style.display = 'flex'; 
         }, 800);
       });
 
-      // 強制修正相機比例與黑邊
+      // 保持相機比例
       setInterval(() => {
-        const video = document.querySelector('video:not([id])');
-        if (video) {
-          video.style.setProperty('width', '100vw', 'important');
-          video.style.setProperty('height', '100vh', 'important');
-          video.style.setProperty('object-fit', 'cover', 'important');
-          video.style.setProperty('z-index', '-5', 'important');
+        const v = document.querySelector('video:not([id])');
+        if (v) {
+          v.style.setProperty('width', '100vw', 'important');
+          v.style.setProperty('height', '100vh', 'important');
+          v.style.setProperty('object-fit', 'cover', 'important');
+          v.style.setProperty('z-index', '-5', 'important');
         }
       }, 1000);
 
@@ -179,22 +188,13 @@
         if (videoFeed && arCanvas) {
           captureCanvas.width = arCanvas.width;
           captureCanvas.height = arCanvas.height;
-          
-          const vw = videoFeed.videoWidth;
-          const vh = videoFeed.videoHeight;
-          const cw = captureCanvas.width;
-          const ch = captureCanvas.height;
-          const vRatio = vw / vh;
-          const cRatio = cw / ch;
+          const vw = videoFeed.videoWidth, vh = videoFeed.videoHeight;
+          const cw = captureCanvas.width, ch = captureCanvas.height;
+          const vRatio = vw / vh, cRatio = cw / ch;
 
           let sx, sy, sw, sh;
-          if (vRatio > cRatio) {
-            sw = vh * cRatio; sh = vh;
-            sx = (vw - sw) / 2; sy = 0;
-          } else {
-            sw = vw; sh = vw / cRatio;
-            sx = 0; sy = (vh - sh) / 2;
-          }
+          if (vRatio > cRatio) { sw = vh * cRatio; sh = vh; sx = (vw - sw) / 2; sy = 0; }
+          else { sw = vw; sh = vw / cRatio; sx = 0; sy = (vh - sh) / 2; }
 
           ctx.drawImage(videoFeed, sx, sy, sw, sh, 0, 0, cw, ch);
           ctx.drawImage(arCanvas, 0, 0, cw, ch);
@@ -206,7 +206,7 @@
         if (!isRecording) {
           isRecording = true;
           this.classList.add('recording');
-          this.innerHTML = '<span class="rec-text">STOP</span><span class="jp-text">停止</span>';
+          this.innerHTML = '<span class="rec-text">STOP</span><span class="sub-text">停止</span>';
           chunks = [];
           recordLoop();
           const stream = captureCanvas.captureStream(30);
@@ -217,14 +217,14 @@
             const url = URL.createObjectURL(blob);
             document.getElementById('preview-video').src = url;
             document.getElementById('download-link').href = url;
-            document.getElementById('download-link').download = `KYRUMI_STUDIO_AR.mp4`;
+            document.getElementById('download-link').download = `KYRUMI_AR.mp4`;
             document.getElementById('preview-layer').style.display = 'flex';
           };
           mediaRecorder.start();
         } else {
           isRecording = false;
           this.classList.remove('recording');
-          this.innerHTML = '<span class="rec-text">REC</span><span class="jp-text">録画</span>';
+          this.innerHTML = '<span class="rec-text">REC</span><span class="sub-text">錄影</span>';
           mediaRecorder.stop();
         }
       });
@@ -234,10 +234,7 @@
         document.getElementById('preview-video').src = "";
       });
 
-      // 觸發音頻播放權限
-      window.addEventListener('touchstart', () => { 
-        if(videoAsset.muted) videoAsset.muted = false; 
-      }, {once: true});
+      window.addEventListener('touchstart', () => { if(videoAsset.muted) videoAsset.muted = false; }, {once: true});
     </script>
   </body>
 </html>

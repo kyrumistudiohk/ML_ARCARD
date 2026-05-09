@@ -49,7 +49,7 @@
     <div id="rec-btn"><span class="rec-text">REC</span><span class="sub-text">錄影</span></div>
 
     <a-scene 
-      mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiScanning: no; filterMinCF: 0.001; filterBeta: 10; warmupTolerance: 5; missTolerance: 12;"
+      mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiScanning: no; filterMinCF: 0.0001; filterBeta: 0.001; warmupTolerance: 5; missTolerance: 15;"
       device-orientation-permission-ui="enabled: false"
       embedded color-management="true" vr-mode-ui="enabled: false"
       renderer="preserveDrawingBuffer: true; alpha: true; antialias: true; precision: mediump;">
@@ -65,8 +65,8 @@
           id="ar-video-el"
           src="#cardVideo" 
           position="0 0.42 0" 
-          width="0.96" 
-          height="0.54"
+          width="0.92" 
+          height="0.517"
           transparent="true"
           material="shader: flat; opacity: 0"
           animation__fadein="property: material.opacity; from: 0; to: 1; dur: 800; startEvents: start-fade">
@@ -94,12 +94,6 @@
       window.addEventListener("arReady", () => {
         document.getElementById('loading-screen').style.display = 'none';
         recBtn.style.display = 'flex';
-        setTimeout(() => {
-          if (sceneEl.camera) {
-            sceneEl.camera.aspect = window.innerWidth / window.innerHeight;
-            sceneEl.camera.updateProjectionMatrix();
-          }
-        }, 500);
       });
 
       setInterval(() => {
@@ -123,16 +117,22 @@
         const elapsed = timestamp - lastFrameTime;
         if (elapsed < fpsInterval) return;
         lastFrameTime = timestamp - (elapsed % fpsInterval);
+        
         const arCanvas = sceneEl.canvas;
         const videoFeed = document.querySelector('video:not([id])');
         if (videoFeed && arCanvas) {
-          const imgW = videoFeed.videoWidth;
-          const imgH = videoFeed.videoHeight;
           const pixelRatio = window.devicePixelRatio || 1;
           const targetW = window.innerWidth * pixelRatio;
           const targetH = window.innerHeight * pixelRatio;
-          if (captureCanvas.width !== targetW) { captureCanvas.width = targetW; captureCanvas.height = targetH; }
+          
+          if (captureCanvas.width !== targetW) { 
+            captureCanvas.width = targetW; 
+            captureCanvas.height = targetH; 
+          }
+          
           ctx.clearRect(0, 0, targetW, targetH);
+          const imgW = videoFeed.videoWidth;
+          const imgH = videoFeed.videoHeight;
           const scale = Math.max(targetW / imgW, targetH / imgH);
           const x = (targetW - imgW * scale) / 2;
           const y = (targetH - imgH * scale) / 2;
@@ -143,13 +143,21 @@
 
       recBtn.addEventListener('click', function() {
         if (!isRecording) {
+          // 強制初始化畫布尺寸，解決第一次錄影壓縮問題
+          const pr = window.devicePixelRatio || 1;
+          captureCanvas.width = window.innerWidth * pr;
+          captureCanvas.height = window.innerHeight * pr;
+          ctx.fillStyle = "black";
+          ctx.fillRect(0,0,captureCanvas.width, captureCanvas.height);
+
           isRecording = true;
           this.classList.add('recording');
           this.innerHTML = '<span class="rec-text">STOP</span><span class="sub-text">停止</span>';
           chunks = [];
           requestAnimationFrame(recordLoop);
+          
           const stream = captureCanvas.captureStream(30);
-          mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9', videoBitsPerSecond: 3000000 });
+          mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9', videoBitsPerSecond: 4000000 });
           mediaRecorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
           mediaRecorder.onstop = () => {
             const blob = new Blob(chunks, { type: 'video/mp4' });

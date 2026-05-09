@@ -6,13 +6,14 @@
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     
     <style>
+      /* 【核心：解決黑屏】確保背景完全透明 */
       html, body { 
         margin: 0; padding: 0; width: 100%; height: 100%; 
         overflow: hidden; 
         background-color: transparent !important; 
       }
       
-      /* 相機層置底 */
+      /* 相機層穩定置底 */
       video:not([id]) {
         width: 100vw !important;
         height: 100vh !important;
@@ -25,7 +26,9 @@
 
       .a-canvas { background: transparent !important; z-index: 1 !important; }
 
-      /* REC 錄影按鈕 */
+      /* --- UI 樣式 --- */
+
+      /* REC 按鈕 */
       #rec-btn { 
         position: fixed; bottom: 40px; right: 30px; 
         width: 65px; height: 65px; border-radius: 50%; border: 1px solid #d4af37;
@@ -37,7 +40,7 @@
       #rec-btn .sub-text { font-size: 8px; opacity: 0.8; }
       #rec-btn.recording { border-color: #ff4444; color: #ff4444; }
 
-      /* 錄影預覽下載層 */
+      /* 預覽與下載層 */
       #preview-layer {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         background: rgba(0,0,0,0.95); z-index: 9999; display: none;
@@ -58,7 +61,7 @@
       .save { background: #d4af37; color: #000; font-weight: bold; }
       .close { background: transparent; color: #d4af37; }
 
-      /* 啟動介面 */
+      /* 啟動選單 */
       #loading-screen {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         background: #0d0d0d; z-index: 10000; display: flex; align-items: center; justify-content: center;
@@ -104,10 +107,10 @@
     </div>
 
     <a-scene 
-      mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiScanning: no; filterMinCF: 0.0001; filterBeta: 0.001; warmupTolerance: 10; missTolerance: 15;"
+      mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiScanning: no; filterMinCF: 0.0001; filterBeta: 0.005; warmupTolerance: 8; missTolerance: 12;"
       device-orientation-permission-ui="enabled: false"
       embedded color-management="true" vr-mode-ui="enabled: false"
-      renderer="preserveDrawingBuffer: true; alpha: true; antialias: true; precision: highp;">
+      renderer="preserveDrawingBuffer: true; alpha: true; antialias: true;">
       
       <a-assets>
         <video id="cardVideo" src="./AR_SMK.mp4" loop="true" crossorigin="anonymous" webkit-playsinline playsinline muted></video>
@@ -116,7 +119,7 @@
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
       
       <a-entity id="ar-target" mindar-image-target="targetIndex: 0">
-        <a-video src="#cardVideo" position="0 0.08 0" width="0.86" height="0.50" transparent="false"></a-video>
+        <a-video src="#cardVideo" position="0 1.43 0" width="0.86" height="0.51" transparent="false"></a-video>
       </a-entity>
     </a-scene>
 
@@ -126,7 +129,6 @@
       const recBtn = document.getElementById('rec-btn');
       const startBtn = document.getElementById('start-btn');
 
-      // 啟動與權限
       startBtn.addEventListener('click', async () => {
         startBtn.innerText = "STARTING...";
         startBtn.disabled = true;
@@ -147,7 +149,7 @@
         document.body.style.backgroundColor = "transparent";
       });
 
-      // 確保底層相機不被遮擋
+      // 監控防止黑屏
       setInterval(() => {
         const v = document.querySelector('video:not([id])');
         if (v) {
@@ -161,19 +163,18 @@
       targetEl.addEventListener("targetFound", () => videoAsset.play());
       targetEl.addEventListener("targetLost", () => videoAsset.pause());
 
-      // 錄影邏輯（高畫質、防變形、流暢特化版）
+      // 錄影邏輯 (高畫質、防擠壓、流暢優化)
       let mediaRecorder, chunks = [], isRecording = false;
       const captureCanvas = document.createElement('canvas');
       const ctx = captureCanvas.getContext('2d');
 
       let lastFrameTime = 0;
-      const fpsInterval = 1000 / 30; // 鎖定穩定 30 FPS 錄製
+      const fpsInterval = 1000 / 30; // 30 FPS 錄影
 
       function recordLoop(timestamp) {
         if (!isRecording) return;
         requestAnimationFrame(recordLoop);
 
-        // 限制幀率，防止手機發燙卡頓
         const elapsed = timestamp - lastFrameTime;
         if (elapsed < fpsInterval) return;
         lastFrameTime = timestamp - (elapsed % fpsInterval);
@@ -182,8 +183,7 @@
         const videoFeed = document.querySelector('video:not([id])');
         
         if (videoFeed && arCanvas) {
-          // 【3. 解決模糊與擠壓變形關鍵】
-          // 抓取真實手機畫布寬高，不再使用 640 低解析度限制，直接使用螢幕解析度
+          // 抓取真實手機畫布寬高，錄出高畫質（不壓縮、不模糊）
           const targetW = arCanvas.width;
           const targetH = arCanvas.height;
 
@@ -192,10 +192,9 @@
             captureCanvas.height = targetH;
           }
 
-          // 清除上一幀
           ctx.clearRect(0, 0, targetW, targetH);
 
-          // 相機背景畫面等比縮放繪製 (object-fit: cover 的 Canvas 實現，徹底避免擠壓變形)
+          // 相機背景等比裁切（object-fit: cover 原理），防止導出影片擠壓變形
           const imgW = videoFeed.videoWidth;
           const imgH = videoFeed.videoHeight;
           
@@ -206,7 +205,7 @@
             ctx.drawImage(videoFeed, 0, 0, imgW, imgH, x, y, imgW * scale, imgH * scale);
           }
 
-          // 完美無損重疊 3D AR 畫面 (AR Canvas 原生解析度)
+          // 重疊 A-Frame Canvas 畫面
           ctx.drawImage(arCanvas, 0, 0, targetW, targetH);
         }
       }
@@ -221,10 +220,8 @@
           lastFrameTime = performance.now();
           requestAnimationFrame(recordLoop);
 
-          // 擷取 Canvas 串流 (30 FPS 錄製，保證流暢)
           const stream = captureCanvas.captureStream(30);
           
-          // 使用 H264 編碼，此格式在 iOS / Android / PC 上皆能流暢播放，且檔案小、畫質極清晰
           let options = { mimeType: 'video/webm;codecs=vp9' };
           if (!MediaRecorder.isTypeSupported(options.mimeType)) {
             options = { mimeType: 'video/webm;codecs=vp8' };
@@ -235,7 +232,7 @@
           
           mediaRecorder = new MediaRecorder(stream, { 
             mimeType: options.mimeType,
-            videoBitsPerSecond: 3000000 // 提高碼率至 3Mbps，畫面細緻清晰！
+            videoBitsPerSecond: 3000000 // 3Mbps 保證畫面高清晰度
           });
           
           mediaRecorder.ondataavailable = e => {

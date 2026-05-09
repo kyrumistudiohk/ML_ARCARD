@@ -100,7 +100,7 @@
     </div>
 
     <a-scene 
-      mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiScanning: no; filterMinCF: 0.0001; filterBeta: 0.001; warmupTolerance: 10; missTolerance: 15;"
+      mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiScanning: no; filterMinCF: 0.05; filterBeta: 0.1; warmupTolerance: 5; missTolerance: 8;"
       device-orientation-permission-ui="enabled: false"
       embedded color-management="true" vr-mode-ui="enabled: false"
       renderer="preserveDrawingBuffer: true; alpha: true; antialias: true; precision: mediump;">
@@ -122,9 +122,9 @@
         <a-video 
           id="ar-video-el"
           src="#cardVideo" 
-          position="0 0.48 0" 
-          width="0.86" 
-          height="0.483"
+          position="-0.035 0.48 0" 
+          width="0.93" 
+          height="0.522"
           transparent="true"
           material="shader: flat; opacity: 0"
           animation__fadein="property: material.opacity; from: 0; to: 1; dur: 1200; startEvents: start-fade">
@@ -157,7 +157,6 @@
         document.getElementById('loading-screen').style.display = 'none';
         recBtn.style.display = 'flex';
         
-        // 抹平不同視窗高寬度的渲染差異
         setTimeout(() => {
           if (sceneEl.camera) {
             sceneEl.camera.aspect = window.innerWidth / window.innerHeight;
@@ -180,17 +179,13 @@
 
       const targetEl = document.querySelector('#ar-target');
       
-      // 當偵測到卡片時
       targetEl.addEventListener("targetFound", () => {
         videoAsset.play();
-        // 觸發自定義事件，使 AR 影片播放淡入動畫
         arVideoEl.emit('start-fade');
       });
       
-      // 當卡片離開視野時
       targetEl.addEventListener("targetLost", () => {
         videoAsset.pause();
-        // 瞬間重置透明度為 0，確保下一次出現時重新播放淡入效果
         arVideoEl.setAttribute('material', 'opacity', 0);
       });
 

@@ -118,12 +118,13 @@
 
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
       
+      <!-- 修正後嘅 AR 影片位置 -->
       <a-entity id="ar-target" mindar-image-target="targetIndex: 0">
         <a-video 
           src="#cardVideo" 
-          position="0 0 0" 
+          position="0 0.35 0" 
           width="1" 
-          height="0.5625"
+          height="0.75"
           transparent="true"
           material="shader: flat">
         </a-video>
@@ -153,26 +154,21 @@
       window.addEventListener("arReady", () => {
         document.getElementById('loading-screen').style.display = 'none';
         recBtn.style.display = 'flex';
-        document.body.style.backgroundColor = "transparent";
       });
 
-      // 定期修復相機層
       setInterval(() => {
         const v = document.querySelector('video:not([id])');
-        if (v) {
-          v.style.setProperty('z-index', '-20', 'important');
-        }
+        if (v) v.style.setProperty('z-index', '-20', 'important');
       }, 1000);
 
       const targetEl = document.querySelector('#ar-target');
       targetEl.addEventListener("targetFound", () => videoAsset.play());
       targetEl.addEventListener("targetLost", () => videoAsset.pause());
 
-      // 錄影邏輯（保持原版）
+      // 錄影邏輯（保持不變）
       let mediaRecorder, chunks = [], isRecording = false;
       const captureCanvas = document.createElement('canvas');
       const ctx = captureCanvas.getContext('2d');
-
       let lastFrameTime = 0;
       const fpsInterval = 1000 / 30;
 
@@ -218,18 +214,13 @@
           this.classList.add('recording');
           this.innerHTML = '<span class="rec-text">STOP</span><span class="sub-text">停止</span>';
           chunks = [];
-          
           lastFrameTime = performance.now();
           requestAnimationFrame(recordLoop);
 
           const stream = captureCanvas.captureStream(30);
           let options = { mimeType: 'video/webm;codecs=vp9' };
-          if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-            options = { mimeType: 'video/webm;codecs=vp8' };
-          }
-          if (!MediaRecorder.isTypeSupported(options.mimeType)) {
-            options = { mimeType: 'video/webm' };
-          }
+          if (!MediaRecorder.isTypeSupported(options.mimeType)) options = { mimeType: 'video/webm;codecs=vp8' };
+          if (!MediaRecorder.isTypeSupported(options.mimeType)) options = { mimeType: 'video/webm' };
           
           mediaRecorder = new MediaRecorder(stream, { 
             mimeType: options.mimeType,

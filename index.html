@@ -6,14 +6,13 @@
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     
     <style>
-      /* 【核心：解決黑屏】必須確保背景完全透明，相機畫面才看得到 */
       html, body { 
         margin: 0; padding: 0; width: 100%; height: 100%; 
         overflow: hidden; 
         background-color: transparent !important; 
       }
       
-      /* 相機層穩定置底 */
+      /* 相機層置底 */
       video:not([id]) {
         width: 100vw !important;
         height: 100vh !important;
@@ -26,9 +25,7 @@
 
       .a-canvas { background: transparent !important; z-index: 1 !important; }
 
-      /* --- 以下鎖定完美 UI 樣式 --- */
-
-      /* REC 按鈕 */
+      /* REC 錄影按鈕 */
       #rec-btn { 
         position: fixed; bottom: 40px; right: 30px; 
         width: 65px; height: 65px; border-radius: 50%; border: 1px solid #d4af37;
@@ -40,7 +37,7 @@
       #rec-btn .sub-text { font-size: 8px; opacity: 0.8; }
       #rec-btn.recording { border-color: #ff4444; color: #ff4444; }
 
-      /* 預覽與下載層 */
+      /* 錄影預覽下載層 */
       #preview-layer {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         background: rgba(0,0,0,0.95); z-index: 9999; display: none;
@@ -61,7 +58,7 @@
       .save { background: #d4af37; color: #000; font-weight: bold; }
       .close { background: transparent; color: #d4af37; }
 
-      /* 啟動選單 */
+      /* 啟動介面 */
       #loading-screen {
         position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         background: #0d0d0d; z-index: 10000; display: flex; align-items: center; justify-content: center;
@@ -107,10 +104,10 @@
     </div>
 
     <a-scene 
-      mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiScanning: no;"
+      mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiScanning: no; filterMinCF: 0.0001; filterBeta: 0.001; warmupTolerance: 10; missTolerance: 15;"
       device-orientation-permission-ui="enabled: false"
       embedded color-management="true" vr-mode-ui="enabled: false"
-      renderer="preserveDrawingBuffer: true; alpha: true; antialias: true;">
+      renderer="preserveDrawingBuffer: true; alpha: true; antialias: true; precision: highp;">
       
       <a-assets>
         <video id="cardVideo" src="./AR_SMK.mp4" loop="true" crossorigin="anonymous" webkit-playsinline playsinline muted></video>
@@ -119,7 +116,7 @@
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
       
       <a-entity id="ar-target" mindar-image-target="targetIndex: 0">
-        <a-video src="#cardVideo" position="0 0.55 0" width="0.85" height="0.50" transparent="false"></a-video>
+        <a-video src="#cardVideo" position="0 0.08 0" width="0.86" height="0.50" transparent="false"></a-video>
       </a-entity>
     </a-scene>
 
@@ -129,7 +126,7 @@
       const recBtn = document.getElementById('rec-btn');
       const startBtn = document.getElementById('start-btn');
 
-      // 權限與啟動邏輯
+      // 啟動與權限
       startBtn.addEventListener('click', async () => {
         startBtn.innerText = "STARTING...";
         startBtn.disabled = true;
@@ -150,6 +147,7 @@
         document.body.style.backgroundColor = "transparent";
       });
 
+      // 確保底層相機不被遮擋
       setInterval(() => {
         const v = document.querySelector('video:not([id])');
         if (v) {
@@ -163,21 +161,19 @@
       targetEl.addEventListener("targetFound", () => videoAsset.play());
       targetEl.addEventListener("targetLost", () => videoAsset.pause());
 
-      // 錄影邏輯 (加入 iOS Safari 流暢度特化防卡機制)
+      // 錄影邏輯（高畫質、防變形、流暢特化版）
       let mediaRecorder, chunks = [], isRecording = false;
       const captureCanvas = document.createElement('canvas');
       const ctx = captureCanvas.getContext('2d');
-      ctx.imageSmoothingEnabled = false; // 關閉抗鋸齒以釋放 Safari 渲染壓力
 
       let lastFrameTime = 0;
-      const fpsInterval = 1000 / 25; // 限制錄影最高 25 FPS，大幅減輕 Safari 的硬體編碼壓力
+      const fpsInterval = 1000 / 30; // 鎖定穩定 30 FPS 錄製
 
       function recordLoop(timestamp) {
         if (!isRecording) return;
-        
         requestAnimationFrame(recordLoop);
 
-        // Safari 流暢度優化：限制 FPS 間隔，未到時間直接不繪製
+        // 限制幀率，防止手機發燙卡頓
         const elapsed = timestamp - lastFrameTime;
         if (elapsed < fpsInterval) return;
         lastFrameTime = timestamp - (elapsed % fpsInterval);
@@ -186,32 +182,32 @@
         const videoFeed = document.querySelector('video:not([id])');
         
         if (videoFeed && arCanvas) {
-          // Safari 性能防卡核心：將錄影像素大小縮減至寬 640 像素，大幅減少 GPU 與記憶體存取
-          const maxDimension = 640; 
-          let targetWidth = arCanvas.width;
-          let targetHeight = arCanvas.height;
+          // 【3. 解決模糊與擠壓變形關鍵】
+          // 抓取真實手機畫布寬高，不再使用 640 低解析度限制，直接使用螢幕解析度
+          const targetW = arCanvas.width;
+          const targetH = arCanvas.height;
 
-          if (targetWidth > maxDimension) {
-            const scale = maxDimension / targetWidth;
-            targetWidth = maxDimension;
-            targetHeight = targetHeight * scale;
+          if (captureCanvas.width !== targetW || captureCanvas.height !== targetH) {
+            captureCanvas.width = targetW;
+            captureCanvas.height = targetH;
           }
 
-          if (captureCanvas.width !== targetWidth || captureCanvas.height !== targetHeight) {
-            captureCanvas.width = targetWidth;
-            captureCanvas.height = targetHeight;
+          // 清除上一幀
+          ctx.clearRect(0, 0, targetW, targetH);
+
+          // 相機背景畫面等比縮放繪製 (object-fit: cover 的 Canvas 實現，徹底避免擠壓變形)
+          const imgW = videoFeed.videoWidth;
+          const imgH = videoFeed.videoHeight;
+          
+          if (imgW > 0 && imgH > 0) {
+            const scale = Math.max(targetW / imgW, targetH / imgH);
+            const x = (targetW - imgW * scale) / 2;
+            const y = (targetH - imgH * scale) / 2;
+            ctx.drawImage(videoFeed, 0, 0, imgW, imgH, x, y, imgW * scale, imgH * scale);
           }
 
-          const vw = videoFeed.videoWidth, vh = videoFeed.videoHeight;
-          const cw = captureCanvas.width, ch = captureCanvas.height;
-          const vRatio = vw / vh, cRatio = cw / ch;
-
-          let sx, sy, sw, sh;
-          if (vRatio > cRatio) { sw = vh * cRatio; sh = vh; sx = (vw - sw) / 2; sy = 0; }
-          else { sw = vw; sh = vw / cRatio; sx = 0; sy = (vh - sh) / 2; }
-
-          ctx.drawImage(videoFeed, sx, sy, sw, sh, 0, 0, cw, ch);
-          ctx.drawImage(arCanvas, 0, 0, cw, ch);
+          // 完美無損重疊 3D AR 畫面 (AR Canvas 原生解析度)
+          ctx.drawImage(arCanvas, 0, 0, targetW, targetH);
         }
       }
 
@@ -225,15 +221,27 @@
           lastFrameTime = performance.now();
           requestAnimationFrame(recordLoop);
 
-          const stream = captureCanvas.captureStream(25); // 使用 25 FPS 錄製，Safari 更流暢
+          // 擷取 Canvas 串流 (30 FPS 錄製，保證流暢)
+          const stream = captureCanvas.captureStream(30);
           
-          // Safari webm 編碼器優化設定
+          // 使用 H264 編碼，此格式在 iOS / Android / PC 上皆能流暢播放，且檔案小、畫質極清晰
+          let options = { mimeType: 'video/webm;codecs=vp9' };
+          if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+            options = { mimeType: 'video/webm;codecs=vp8' };
+          }
+          if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+            options = { mimeType: 'video/webm' };
+          }
+          
           mediaRecorder = new MediaRecorder(stream, { 
-            mimeType: 'video/webm;codecs=vp8',
-            videoBitsPerSecond: 1500000 // 降低碼率至 1.5 Mbps，降低手機運算發熱
+            mimeType: options.mimeType,
+            videoBitsPerSecond: 3000000 // 提高碼率至 3Mbps，畫面細緻清晰！
           });
           
-          mediaRecorder.ondataavailable = e => chunks.push(e.data);
+          mediaRecorder.ondataavailable = e => {
+            if (e.data && e.data.size > 0) chunks.push(e.data);
+          };
+
           mediaRecorder.onstop = () => {
             const blob = new Blob(chunks, { type: 'video/mp4' });
             const url = URL.createObjectURL(blob);

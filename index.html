@@ -3,7 +3,7 @@
   <head>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
     <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mind-ar-image-aframe.prod.js"></script>
     
     <style>
       html, body { 
@@ -121,9 +121,9 @@
       <a-entity id="ar-target" mindar-image-target="targetIndex: 0">
         <a-video 
           src="#cardVideo" 
-          position="0 0.48 0" 
-          width="1" 
-          height="0.5625"
+          position="0 0.52 0" 
+          width="0.82" 
+          height="0.46125"
           transparent="true"
           material="shader: flat">
         </a-video>
@@ -164,9 +164,10 @@
       targetEl.addEventListener("targetFound", () => videoAsset.play());
       targetEl.addEventListener("targetLost", () => videoAsset.pause());
 
+      // 錄影邏輯 - 修復 squeezed 問題
       let mediaRecorder, chunks = [], isRecording = false;
       const captureCanvas = document.createElement('canvas');
-      const ctx = captureCanvas.getContext('2d');
+      const ctx = captureCanvas.getContext('2d', { alpha: true });
       let lastFrameTime = 0;
       const fpsInterval = 1000 / 30;
 
@@ -222,7 +223,7 @@
           
           mediaRecorder = new MediaRecorder(stream, { 
             mimeType: options.mimeType,
-            videoBitsPerSecond: 3000000
+            videoBitsPerSecond: 4000000
           });
           
           mediaRecorder.ondataavailable = e => { if (e.data && e.data.size > 0) chunks.push(e.data); };

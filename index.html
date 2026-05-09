@@ -121,9 +121,9 @@
       <a-entity id="ar-target" mindar-image-target="targetIndex: 0">
         <a-video 
           src="#cardVideo" 
-          position="0 0.52 0" 
-          width="0.82" 
-          height="0.46125"
+          position="0 1.15 0" 
+          width="0.86" 
+          height="0.49"
           transparent="true"
           material="shader: flat">
         </a-video>
@@ -136,48 +136,25 @@
       const recBtn = document.getElementById('rec-btn');
       const startBtn = document.getElementById('start-btn');
 
-      // 加強版相機請求
       startBtn.addEventListener('click', async () => {
         startBtn.innerText = "STARTING...";
         startBtn.disabled = true;
 
-        try {
-          // 明確請求相機權限
-          if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-            await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-            console.log("相機權限已手動授予");
-          }
-        } catch (e) {
-          console.error("手動相機請求失敗:", e);
-        }
-
-        // 請求 DeviceOrientation 權限（iOS 需要）
         if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
           try {
             await DeviceOrientationEvent.requestPermission();
-          } catch (e) { 
-            console.error("Sensor permission error:", e); 
-          }
+          } catch (e) { console.error("Sensor permission error:", e); }
         }
 
-        // 啟動 MindAR
-        try {
-          await sceneEl.systems['mindar-image-system'].start();
-          console.log("MindAR 成功啟動");
-        } catch (err) {
-          console.error("MindAR 啟動失敗:", err);
-        }
-
+        sceneEl.systems['mindar-image-system'].start();
         videoAsset.load();
       });
 
       window.addEventListener("arReady", () => {
-        console.log("AR Ready");
         document.getElementById('loading-screen').style.display = 'none';
         recBtn.style.display = 'flex';
       });
 
-      // 其他代碼保持不變...
       setInterval(() => {
         const v = document.querySelector('video:not([id])');
         if (v) v.style.setProperty('z-index', '-20', 'important');
@@ -187,16 +164,16 @@
       targetEl.addEventListener("targetFound", () => videoAsset.play());
       targetEl.addEventListener("targetLost", () => videoAsset.pause());
 
-      // 錄影部分（略過，與之前相同）
       let mediaRecorder, chunks = [], isRecording = false;
       const captureCanvas = document.createElement('canvas');
-      const ctx = captureCanvas.getContext('2d', { alpha: true });
+      const ctx = captureCanvas.getContext('2d');
       let lastFrameTime = 0;
       const fpsInterval = 1000 / 30;
 
       function recordLoop(timestamp) {
         if (!isRecording) return;
         requestAnimationFrame(recordLoop);
+
         const elapsed = timestamp - lastFrameTime;
         if (elapsed < fpsInterval) return;
         lastFrameTime = timestamp - (elapsed % fpsInterval);
@@ -205,22 +182,31 @@
         const videoFeed = document.querySelector('video:not([id])');
         
         if (videoFeed && arCanvas) {
-          const targetW = arCanvas.width;
-          const targetH = arCanvas.height;
+          // 【修復錄製拉伸、擠壓核心】
+          // 使用真實的手機視窗物理像素，而非 WebGL 畫布原生大小，這能強行鎖定手機原本的比例 (Aspect Ratio)
+          const pixelRatio = window.devicePixelRatio || 1;
+          const targetW = window.innerWidth * pixelRatio;
+          const targetH = window.innerHeight * pixelRatio;
+
           if (captureCanvas.width !== targetW || captureCanvas.height !== targetH) {
             captureCanvas.width = targetW;
             captureCanvas.height = targetH;
           }
+
           ctx.clearRect(0, 0, targetW, targetH);
 
+          // 1. 繪製底部相機畫面 (100% 等比例適應、無擠壓)
           const imgW = videoFeed.videoWidth;
           const imgH = videoFeed.videoHeight;
+          
           if (imgW > 0 && imgH > 0) {
             const scale = Math.max(targetW / imgW, targetH / imgH);
             const x = (targetW - imgW * scale) / 2;
             const y = (targetH - imgH * scale) / 2;
             ctx.drawImage(videoFeed, 0, 0, imgW, imgH, x, y, imgW * scale, imgH * scale);
           }
+
+          // 2. 繪製 AR 平鋪層 (完全對位，解決與背景錯位與變形問題)
           ctx.drawImage(arCanvas, 0, 0, targetW, targetH);
         }
       }
@@ -241,7 +227,7 @@
           
           mediaRecorder = new MediaRecorder(stream, { 
             mimeType: options.mimeType,
-            videoBitsPerSecond: 4000000 
+            videoBitsPerSecond: 3000000
           });
           
           mediaRecorder.ondataavailable = e => { if (e.data && e.data.size > 0) chunks.push(e.data); };

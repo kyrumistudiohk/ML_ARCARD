@@ -121,9 +121,9 @@
       <a-entity id="ar-target" mindar-image-target="targetIndex: 0">
         <a-video 
           src="#cardVideo" 
-          position="0 1.15 0" 
+          position="0 0.48 0" 
           width="0.86" 
-          height="0.49"
+          height="0.483"
           transparent="true"
           material="shader: flat">
         </a-video>
@@ -182,8 +182,8 @@
         const videoFeed = document.querySelector('video:not([id])');
         
         if (videoFeed && arCanvas) {
-          // 【修復錄製拉伸、擠壓核心】
-          // 使用真實的手機視窗物理像素，而非 WebGL 畫布原生大小，這能強行鎖定手機原本的比例 (Aspect Ratio)
+          // 【修復錄影比例變形】
+          // 鎖定手機螢幕物理寬高比例 (解決擠壓與變形問題)
           const pixelRatio = window.devicePixelRatio || 1;
           const targetW = window.innerWidth * pixelRatio;
           const targetH = window.innerHeight * pixelRatio;
@@ -195,7 +195,6 @@
 
           ctx.clearRect(0, 0, targetW, targetH);
 
-          // 1. 繪製底部相機畫面 (100% 等比例適應、無擠壓)
           const imgW = videoFeed.videoWidth;
           const imgH = videoFeed.videoHeight;
           
@@ -206,7 +205,6 @@
             ctx.drawImage(videoFeed, 0, 0, imgW, imgH, x, y, imgW * scale, imgH * scale);
           }
 
-          // 2. 繪製 AR 平鋪層 (完全對位，解決與背景錯位與變形問題)
           ctx.drawImage(arCanvas, 0, 0, targetW, targetH);
         }
       }

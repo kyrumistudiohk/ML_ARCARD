@@ -27,6 +27,37 @@
       .desc { color: #d4af37; font-size: 11px; line-height: 1.8; opacity: 0.8; margin-bottom: 30px; }
       #start-btn { background: #d4af37; border: none; color: #000; padding: 14px 40px; font-size: 14px; letter-spacing: 2px; cursor: pointer; font-family: serif; font-weight: bold; }
     </style>
+
+    <script>
+      // 註冊邊緣柔和（羽化） Shader 效果
+      AFRAME.registerShader('soft-edge-video', {
+        schema: {
+          src: {type: 'map', is: 'uniform'},
+          opacity: {type: 'number', is: 'uniform', default: 1.0},
+          softness: {type: 'number', is: 'uniform', default: 0.10} // 0.10 代表邊緣 10% 做模糊漸變
+        },
+        vertexShader: `
+          varying vec2 vUv;
+          void main() {
+            vUv = uv;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          }
+        `,
+        fragmentShader: `
+          uniform sampler2D src;
+          uniform float opacity;
+          uniform float softness;
+          varying vec2 vUv;
+          void main() {
+            vec4 color = texture2D(src, vUv);
+            // 計算四個邊界嘅平滑漸變值
+            float mask = smoothstep(0.0, softness, vUv.x) * smoothstep(1.0, 1.0 - softness, vUv.x) *
+                         smoothstep(0.0, softness, vUv.y) * smoothstep(1.0, 1.0 - softness, vUv.y);
+            gl_FragColor = vec4(color.rgb, color.a * opacity * mask);
+          }
+        `
+      });
+    </script>
   </head>
 
   <body>
@@ -49,7 +80,7 @@
     <div id="rec-btn"><span class="rec-text">REC</span><span class="sub-text">錄影</span></div>
 
     <a-scene 
-      mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiScanning: no; filterMinCF: 0.0001; filterBeta: 0.001; warmupTolerance: 5; missTolerance: 15;"
+      mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiScanning: no; filterMinCF: 0.0015; filterBeta: 1.5; warmupTolerance: 5; missTolerance: 15;"
       device-orientation-permission-ui="enabled: false"
       embedded color-management="true" vr-mode-ui="enabled: false"
       renderer="preserveDrawingBuffer: true; alpha: true; antialias: true; precision: mediump;">
@@ -64,11 +95,10 @@
         <a-video 
           id="ar-video-el"
           src="#cardVideo" 
-          position="0 0.42 0" 
+          position="0 0.42 0.01" 
           width="0.92" 
           height="0.517"
-          transparent="true"
-          material="shader: flat; opacity: 0"
+          material="shader: soft-edge-video; softness: 0.12; opacity: 0;"
           animation__fadein="property: material.opacity; from: 0; to: 1; dur: 800; startEvents: start-fade">
         </a-video>
       </a-entity>
@@ -102,8 +132,15 @@
       }, 1000);
 
       const targetEl = document.querySelector('#ar-target');
-      targetEl.addEventListener("targetFound", () => { videoAsset.play(); arVideoEl.emit('start-fade'); });
-      targetEl.addEventListener("targetLost", () => { videoAsset.pause(); arVideoEl.setAttribute('material', 'opacity', 0); });
+      targetEl.addEventListener("targetFound", () => { 
+        videoAsset.play(); 
+        arVideoEl.emit('start-fade'); 
+      });
+      targetEl.addEventListener("targetLost", () => { 
+        videoAsset.pause(); 
+        // 配合 Shader，將 opacity 屬性安全地重設為 0
+        arVideoEl.setAttribute('material', 'opacity', 0); 
+      });
 
       let mediaRecorder, chunks = [], isRecording = false;
       const captureCanvas = document.createElement('canvas');
@@ -143,7 +180,6 @@
 
       recBtn.addEventListener('click', function() {
         if (!isRecording) {
-          // 強制初始化畫布尺寸，解決第一次錄影壓縮問題
           const pr = window.devicePixelRatio || 1;
           captureCanvas.width = window.innerWidth * pr;
           captureCanvas.height = window.innerHeight * pr;

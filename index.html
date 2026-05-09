@@ -100,7 +100,7 @@
     </div>
 
     <a-scene 
-      mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiScanning: no; filterMinCF: 0.012; filterBeta: 1.5; warmupTolerance: 5; missTolerance: 4;"
+      mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiScanning: no; filterMinCF: 0.0005; filterBeta: 0.1; warmupTolerance: 5; missTolerance: 6;"
       device-orientation-permission-ui="enabled: false"
       embedded color-management="true" vr-mode-ui="enabled: false"
       renderer="preserveDrawingBuffer: true; alpha: true; antialias: true; precision: mediump;">
@@ -122,9 +122,9 @@
         <a-video 
           id="ar-video-el"
           src="#cardVideo" 
-          position="-0.024 0.465 0" 
-          width="0.925" 
-          height="0.52"
+          position="0 0.44 0" 
+          width="1.025" 
+          height="0.583"
           transparent="true"
           material="shader: flat; opacity: 0"
           animation__fadein="property: material.opacity; from: 0; to: 1; dur: 1200; startEvents: start-fade">

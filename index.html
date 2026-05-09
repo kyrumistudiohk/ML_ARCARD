@@ -29,12 +29,12 @@
     </style>
 
     <script>
-      // 註冊邊緣柔和（羽化） Shader 效果
+      // 註冊邊緣柔和 Shader 效果
       AFRAME.registerShader('soft-edge-video', {
         schema: {
           src: {type: 'map', is: 'uniform'},
           opacity: {type: 'number', is: 'uniform', default: 1.0},
-          softness: {type: 'number', is: 'uniform', default: 0.10} // 0.10 代表邊緣 10% 做模糊漸變
+          softness: {type: 'number', is: 'uniform', default: 0.03} // 預設降到 3% 做極微羽化，確保完美貼邊
         },
         vertexShader: `
           varying vec2 vUv;
@@ -50,7 +50,7 @@
           varying vec2 vUv;
           void main() {
             vec4 color = texture2D(src, vUv);
-            // 計算四個邊界嘅平滑漸變值
+            // 平滑過渡
             float mask = smoothstep(0.0, softness, vUv.x) * smoothstep(1.0, 1.0 - softness, vUv.x) *
                          smoothstep(0.0, softness, vUv.y) * smoothstep(1.0, 1.0 - softness, vUv.y);
             gl_FragColor = vec4(color.rgb, color.a * opacity * mask);
@@ -80,7 +80,7 @@
     <div id="rec-btn"><span class="rec-text">REC</span><span class="sub-text">錄影</span></div>
 
     <a-scene 
-      mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiScanning: no; filterMinCF: 0.0015; filterBeta: 1.5; warmupTolerance: 5; missTolerance: 15;"
+      mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiScanning: no; filterMinCF: 0.0001; filterBeta: 0.01; warmupTolerance: 5; missTolerance: 20;"
       device-orientation-permission-ui="enabled: false"
       embedded color-management="true" vr-mode-ui="enabled: false"
       renderer="preserveDrawingBuffer: true; alpha: true; antialias: true; precision: mediump;">
@@ -98,7 +98,7 @@
           position="0 0.42 0.01" 
           width="0.92" 
           height="0.517"
-          material="shader: soft-edge-video; softness: 0.12; opacity: 0;"
+          material="shader: soft-edge-video; softness: 0.03; opacity: 0;"
           animation__fadein="property: material.opacity; from: 0; to: 1; dur: 800; startEvents: start-fade">
         </a-video>
       </a-entity>
@@ -138,7 +138,6 @@
       });
       targetEl.addEventListener("targetLost", () => { 
         videoAsset.pause(); 
-        // 配合 Shader，將 opacity 屬性安全地重設為 0
         arVideoEl.setAttribute('material', 'opacity', 0); 
       });
 

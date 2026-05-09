@@ -6,71 +6,26 @@
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     
     <style>
-      html, body { 
-        margin: 0; padding: 0; width: 100%; height: 100%; 
-        overflow: hidden; 
-        background-color: transparent !important; 
-      }
-      
-      video:not([id]) {
-        width: 100vw !important;
-        height: 100vh !important;
-        object-fit: cover !important;
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        z-index: -20 !important; 
-      }
-
+      html, body { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: transparent !important; }
+      video:not([id]) { width: 100vw !important; height: 100vh !important; object-fit: cover !important; position: fixed !important; top: 0 !important; left: 0 !important; z-index: -20 !important; }
       .a-canvas { background: transparent !important; z-index: 1 !important; }
-
-      #rec-btn { 
-        position: fixed; bottom: 40px; right: 30px; 
-        width: 65px; height: 65px; border-radius: 50%; border: 1px solid #d4af37;
-        background: rgba(13, 13, 13, 0.7); color: #d4af37;
-        display: none; flex-direction: column; align-items: center; justify-content: center; 
-        z-index: 1000; font-family: serif; cursor: pointer; transition: 0.3s;
-      }
+      #rec-btn { position: fixed; bottom: 40px; right: 30px; width: 65px; height: 65px; border-radius: 50%; border: 1px solid #d4af37; background: rgba(13, 13, 13, 0.7); color: #d4af37; display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 1000; font-family: serif; cursor: pointer; transition: 0.3s; }
       #rec-btn .rec-text { font-size: 11px; font-weight: bold; }
       #rec-btn .sub-text { font-size: 8px; opacity: 0.8; }
       #rec-btn.recording { border-color: #ff4444; color: #ff4444; }
-
-      #preview-layer {
-        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0,0,0,0.95); z-index: 9999; display: none;
-        flex-direction: column; align-items: center; justify-content: center;
-        padding: 20px; box-sizing: border-box;
-      }
-      #preview-video { 
-        max-width: 90%; max-height: 55vh; 
-        border: 1px solid #d4af37; border-radius: 4px; background: #000;
-        margin-bottom: 25px;
-      }
+      #preview-layer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); z-index: 9999; display: none; flex-direction: column; align-items: center; justify-content: center; padding: 20px; box-sizing: border-box; }
+      #preview-video { max-width: 90%; max-height: 55vh; border: 1px solid #d4af37; border-radius: 4px; background: #000; margin-bottom: 25px; }
       .popup-btns { display: flex; flex-direction: column; width: 85%; gap: 12px; }
-      .btn { 
-        padding: 15px; font-family: serif; cursor: pointer; font-size: 14px;
-        letter-spacing: 2px; text-align: center; border-radius: 4px;
-        text-decoration: none; border: 1px solid #d4af37;
-      }
+      .btn { padding: 15px; font-family: serif; cursor: pointer; font-size: 14px; letter-spacing: 2px; text-align: center; border-radius: 4px; text-decoration: none; border: 1px solid #d4af37; }
       .save { background: #d4af37; color: #000; font-weight: bold; }
       .close { background: transparent; color: #d4af37; }
-
-      #loading-screen {
-        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-        background: #0d0d0d; z-index: 10000; display: flex; align-items: center; justify-content: center;
-      }
-      .menu-card {
-        padding: 40px 30px; border: 1px solid #d4af37; position: relative; text-align: center; width: 75%;
-      }
+      #loading-screen { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0d0d0d; z-index: 10000; display: flex; align-items: center; justify-content: center; }
+      .menu-card { padding: 40px 30px; border: 1px solid #d4af37; position: relative; text-align: center; width: 75%; }
       .menu-card::before { content: ""; position: absolute; top: -5px; left: -5px; width: 15px; height: 15px; border-top: 2px solid #d4af37; border-left: 2px solid #d4af37; }
       .menu-card::after { content: ""; position: absolute; bottom: -5px; right: -5px; width: 15px; height: 15px; border-bottom: 2px solid #d4af37; border-right: 2px solid #d4af37; }
       .title { color: #d4af37; font-family: serif; letter-spacing: 5px; font-size: 24px; margin-bottom: 10px; }
       .desc { color: #d4af37; font-size: 11px; line-height: 1.8; opacity: 0.8; margin-bottom: 30px; }
-      #start-btn {
-        background: #d4af37; border: none; color: #000;
-        padding: 14px 40px; font-size: 14px; letter-spacing: 2px; cursor: pointer;
-        font-family: serif; font-weight: bold;
-      }
+      #start-btn { background: #d4af37; border: none; color: #000; padding: 14px 40px; font-size: 14px; letter-spacing: 2px; cursor: pointer; font-family: serif; font-weight: bold; }
     </style>
   </head>
 
@@ -78,10 +33,7 @@
     <div id="loading-screen">
       <div class="menu-card">
         <div class="title">KYRUMI STUDIO</div>
-        <div class="desc">
-          啟動 AR 需要使用您的相機與動態感測器<br>
-          Camera and Motion Sensors access required.
-        </div>
+        <div class="desc">啟動 AR 需要使用您的相機與動態感測器<br>Camera and Motion Sensors access required.</div>
         <button id="start-btn">開始探索 / START</button>
       </div>
     </div>
@@ -94,26 +46,16 @@
         </div>
     </div>
 
-    <div id="rec-btn">
-      <span class="rec-text">REC</span>
-      <span class="sub-text">錄影</span>
-    </div>
+    <div id="rec-btn"><span class="rec-text">REC</span><span class="sub-text">錄影</span></div>
 
     <a-scene 
-      mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiScanning: no; filterMinCF: 0.0005; filterBeta: 0.1; warmupTolerance: 5; missTolerance: 6;"
+      mindar-image="imageTargetSrc: ./targets.mind; autoStart: false; uiLoading: no; uiScanning: no; filterMinCF: 0.001; filterBeta: 10; warmupTolerance: 5; missTolerance: 12;"
       device-orientation-permission-ui="enabled: false"
       embedded color-management="true" vr-mode-ui="enabled: false"
       renderer="preserveDrawingBuffer: true; alpha: true; antialias: true; precision: mediump;">
       
       <a-assets>
-        <video id="cardVideo" 
-               src="./AR_SMK.mp4" 
-               loop="true" 
-               muted 
-               playsinline 
-               webkit-playsinline
-               crossorigin="anonymous">
-        </video>
+        <video id="cardVideo" src="./AR_SMK.mp4" loop="true" muted playsinline webkit-playsinline crossorigin="anonymous"></video>
       </a-assets>
 
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
@@ -122,12 +64,12 @@
         <a-video 
           id="ar-video-el"
           src="#cardVideo" 
-          position="0 0.44 0" 
-          width="1.025" 
-          height="0.583"
+          position="0 0.42 0" 
+          width="0.96" 
+          height="0.54"
           transparent="true"
           material="shader: flat; opacity: 0"
-          animation__fadein="property: material.opacity; from: 0; to: 1; dur: 1200; startEvents: start-fade">
+          animation__fadein="property: material.opacity; from: 0; to: 1; dur: 800; startEvents: start-fade">
         </a-video>
       </a-entity>
     </a-scene>
@@ -142,13 +84,9 @@
       startBtn.addEventListener('click', async () => {
         startBtn.innerText = "STARTING...";
         startBtn.disabled = true;
-
         if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-          try {
-            await DeviceOrientationEvent.requestPermission();
-          } catch (e) { console.error("Sensor permission error:", e); }
+          try { await DeviceOrientationEvent.requestPermission(); } catch (e) { console.error(e); }
         }
-
         sceneEl.systems['mindar-image-system'].start();
         videoAsset.load();
       });
@@ -156,7 +94,6 @@
       window.addEventListener("arReady", () => {
         document.getElementById('loading-screen').style.display = 'none';
         recBtn.style.display = 'flex';
-        
         setTimeout(() => {
           if (sceneEl.camera) {
             sceneEl.camera.aspect = window.innerWidth / window.innerHeight;
@@ -165,29 +102,14 @@
         }, 500);
       });
 
-      window.addEventListener('resize', () => {
-        if (sceneEl.camera) {
-          sceneEl.camera.aspect = window.innerWidth / window.innerHeight;
-          sceneEl.camera.updateProjectionMatrix();
-        }
-      });
-
       setInterval(() => {
         const v = document.querySelector('video:not([id])');
         if (v) v.style.setProperty('z-index', '-20', 'important');
       }, 1000);
 
       const targetEl = document.querySelector('#ar-target');
-      
-      targetEl.addEventListener("targetFound", () => {
-        videoAsset.play();
-        arVideoEl.emit('start-fade');
-      });
-      
-      targetEl.addEventListener("targetLost", () => {
-        videoAsset.pause();
-        arVideoEl.setAttribute('material', 'opacity', 0);
-      });
+      targetEl.addEventListener("targetFound", () => { videoAsset.play(); arVideoEl.emit('start-fade'); });
+      targetEl.addEventListener("targetLost", () => { videoAsset.pause(); arVideoEl.setAttribute('material', 'opacity', 0); });
 
       let mediaRecorder, chunks = [], isRecording = false;
       const captureCanvas = document.createElement('canvas');
@@ -198,34 +120,22 @@
       function recordLoop(timestamp) {
         if (!isRecording) return;
         requestAnimationFrame(recordLoop);
-
         const elapsed = timestamp - lastFrameTime;
         if (elapsed < fpsInterval) return;
         lastFrameTime = timestamp - (elapsed % fpsInterval);
-
         const arCanvas = sceneEl.canvas;
         const videoFeed = document.querySelector('video:not([id])');
-        
         if (videoFeed && arCanvas) {
           const imgW = videoFeed.videoWidth;
           const imgH = videoFeed.videoHeight;
-          if (imgW <= 0 || imgH <= 0 || arCanvas.width <= 0) return;
-
           const pixelRatio = window.devicePixelRatio || 1;
           const targetW = window.innerWidth * pixelRatio;
           const targetH = window.innerHeight * pixelRatio;
-
-          if (captureCanvas.width !== targetW || captureCanvas.height !== targetH) {
-            captureCanvas.width = targetW;
-            captureCanvas.height = targetH;
-          }
-
+          if (captureCanvas.width !== targetW) { captureCanvas.width = targetW; captureCanvas.height = targetH; }
           ctx.clearRect(0, 0, targetW, targetH);
-          
           const scale = Math.max(targetW / imgW, targetH / imgH);
           const x = (targetW - imgW * scale) / 2;
           const y = (targetH - imgH * scale) / 2;
-          
           ctx.drawImage(videoFeed, 0, 0, imgW, imgH, x, y, imgW * scale, imgH * scale);
           ctx.drawImage(arCanvas, 0, 0, targetW, targetH);
         }
@@ -233,29 +143,14 @@
 
       recBtn.addEventListener('click', function() {
         if (!isRecording) {
-          const pixelRatio = window.devicePixelRatio || 1;
-          captureCanvas.width = window.innerWidth * pixelRatio;
-          captureCanvas.height = window.innerHeight * pixelRatio;
-
           isRecording = true;
           this.classList.add('recording');
           this.innerHTML = '<span class="rec-text">STOP</span><span class="sub-text">停止</span>';
           chunks = [];
-          lastFrameTime = performance.now();
           requestAnimationFrame(recordLoop);
-
           const stream = captureCanvas.captureStream(30);
-          let options = { mimeType: 'video/webm;codecs=vp9' };
-          if (!MediaRecorder.isTypeSupported(options.mimeType)) options = { mimeType: 'video/webm;codecs=vp8' };
-          if (!MediaRecorder.isTypeSupported(options.mimeType)) options = { mimeType: 'video/webm' };
-          
-          mediaRecorder = new MediaRecorder(stream, { 
-            mimeType: options.mimeType,
-            videoBitsPerSecond: 3000000
-          });
-          
-          mediaRecorder.ondataavailable = e => { if (e.data && e.data.size > 0) chunks.push(e.data); };
-          
+          mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm;codecs=vp9', videoBitsPerSecond: 3000000 });
+          mediaRecorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
           mediaRecorder.onstop = () => {
             const blob = new Blob(chunks, { type: 'video/mp4' });
             const url = URL.createObjectURL(blob);
